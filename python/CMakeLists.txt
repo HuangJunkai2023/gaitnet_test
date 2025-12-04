@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(pysim)
+cmake_policy(SET CMP0148 OLD)
 
 add_compile_options(-fPIC)
 add_compile_options(-Wdeprecated-declarations)
@@ -13,6 +14,8 @@ if(OPENMP_FOUND)
 endif()
 
 find_package(DART REQUIRED COMPONENTS gui collision-bullet CONFIG)
+# Add dart library directories
+link_directories($ENV{HOME}/pkgenv/lib)
 find_package(PythonLibs REQUIRED)
 find_package(pybind11 REQUIRED)
 

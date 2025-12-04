@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(mysim)
+cmake_policy(SET CMP0148 OLD)
 
 add_compile_options(-fvisibility=hidden)
 
@@ -7,6 +8,8 @@ link_directories(../sim/)
 include_directories(../sim/)
 
 find_package(DART REQUIRED COMPONENTS gui collision-bullet  CONFIG)
+# Add dart library directories
+link_directories($ENV{HOME}/pkgenv/lib)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(PythonLibs REQUIRED)

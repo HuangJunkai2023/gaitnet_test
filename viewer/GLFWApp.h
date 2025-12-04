@@ -228,5 +228,12 @@ private:
     bool mRenderConditions;
     bool mRenderC3D;
     
+    // Muscle Activation Recording
+    bool mRecordingActivation;
+    std::vector<Eigen::VectorXd> mActivationBuffer;
+    int mRecordingCount;
+    void startRecording();
+    void stopRecording();
+    void saveMuscleActivationData();
 
 };

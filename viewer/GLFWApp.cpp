@@ -4,6 +4,11 @@
 #endif
 #include "stb_image_write.h"
 #include "dart/external/lodepng/lodepng.h"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+#include <fstream>
+#include <ctime>
 const std::vector<std::string> CHANNELS =
     {
         "Xposition",
@@ -169,6 +174,10 @@ GLFWApp::GLFWApp(int argc, char **argv, bool rendermode)
 
     mMotionFrameIdx = 0;
     mMotionRootOffset = Eigen::Vector3d::Zero();
+    
+    // Muscle Activation Recording
+    mRecordingActivation = false;
+    mRecordingCount = 0;
 }
 
 GLFWApp::~GLFWApp()
@@ -288,6 +297,12 @@ void GLFWApp::update(bool _isSave)
         Eigen::VectorXf action = (mNetworks.size() > 0 ? mNetworks[0].joint.attr("get_action")(mEnv->getState(), mStochasticPolicy).cast<Eigen::VectorXf>() : mEnv->getAction().cast<float>());
 
         mEnv->setAction(action.cast<double>());
+        
+        // Record muscle activation data
+        if (mRecordingActivation && mEnv->getUseMuscle())
+        {
+            mActivationBuffer.push_back(mEnv->getCharacter(0)->getActivations());
+        }
     }
     if (_isSave)
     {
@@ -987,6 +1002,28 @@ void GLFWApp::drawUIDisplay()
     ImGui::Text("Target     Velocity    :  %.3f m/s", mEnv->getTargetCOMVelocity());
     ImGui::Text("Average    Velocity    :  %.3f m/s", mEnv->getAvgVelocity()[2]);
     ImGui::Text("Current    Velocity    :  %.3f m/s", mEnv->getCharacter(0)->getSkeleton()->getCOMLinearVelocity()[2]);
+
+    // Muscle Activation Recording
+    ImGui::Separator();
+    ImGui::Text("Muscle Activation Recording");
+    if (mRecordingActivation)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Recording... (%zu frames)", mActivationBuffer.size());
+        if (ImGui::Button("Stop Recording"))
+        {
+            stopRecording();
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Start Recording"))
+        {
+            startRecording();
+        }
+        ImGui::SameLine();
+        ImGui::Text("Recordings: %d", mRecordingCount);
+    }
+    ImGui::Separator();
 
     // Metadata
     if (ImGui::CollapsingHeader("Metadata"))
@@ -2156,4 +2193,110 @@ void GLFWApp::drawShadow()
     drawSkeleton(pos, Eigen::Vector4d(0.1, 0.1, 0.1, 1.0));
     glPopMatrix();
     glEnable(GL_LIGHTING);
+}
+
+void GLFWApp::startRecording()
+{
+    if (!mEnv->getUseMuscle())
+    {
+        std::cout << "Warning: Muscle is not enabled. Cannot record activation data." << std::endl;
+        return;
+    }
+    
+    mRecordingActivation = true;
+    mActivationBuffer.clear();
+    std::cout << "Started recording muscle activation data..." << std::endl;
+}
+
+void GLFWApp::stopRecording()
+{
+    if (!mRecordingActivation)
+    {
+        std::cout << "Warning: Not currently recording." << std::endl;
+        return;
+    }
+    
+    mRecordingActivation = false;
+    std::cout << "Stopped recording. Captured " << mActivationBuffer.size() << " frames." << std::endl;
+    
+    // Save the data automatically
+    if (mActivationBuffer.size() > 0)
+    {
+        saveMuscleActivationData();
+    }
+}
+
+void GLFWApp::saveMuscleActivationData()
+{
+    if (mActivationBuffer.size() == 0)
+    {
+        std::cout << "Warning: No data to save." << std::endl;
+        return;
+    }
+    
+    // Create directory if it doesn't exist
+    std::string dir_path = "../muscle_activation_data";
+    std::string mkdir_cmd = "mkdir -p " + dir_path;
+    system(mkdir_cmd.c_str());
+    
+    // Generate filename with timestamp
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << dir_path << "/activation_" 
+       << std::put_time(std::localtime(&time_t_now), "%Y%m%d_%H%M%S")
+       << "_" << std::setfill('0') << std::setw(4) << mRecordingCount
+       << ".txt";
+    
+    std::string filename = ss.str();
+    
+    // Save data to file
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return;
+    }
+    
+    // Write header with muscle names
+    file << "# Muscle Activation Data" << std::endl;
+    file << "# Total frames: " << mActivationBuffer.size() << std::endl;
+    file << "# Control Hz: " << mEnv->getControlHz() << std::endl;
+    file << "# Time step: " << (1.0 / mEnv->getControlHz()) << " seconds" << std::endl;
+    file << "# Muscles: ";
+    
+    auto muscles = mEnv->getCharacter(0)->getMuscles();
+    for (size_t i = 0; i < muscles.size(); i++)
+    {
+        file << muscles[i]->name;
+        if (i < muscles.size() - 1)
+            file << ", ";
+    }
+    file << std::endl;
+    file << "# Format: frame_index time muscle1_activation muscle2_activation ..." << std::endl;
+    file << std::endl;
+    
+    // Write data
+    double dt = 1.0 / mEnv->getControlHz();
+    for (size_t i = 0; i < mActivationBuffer.size(); i++)
+    {
+        file << i << " " << (i * dt) << " ";
+        for (int j = 0; j < mActivationBuffer[i].rows(); j++)
+        {
+            file << mActivationBuffer[i][j];
+            if (j < mActivationBuffer[i].rows() - 1)
+                file << " ";
+        }
+        file << std::endl;
+    }
+    
+    file.close();
+    
+    std::cout << "Saved muscle activation data to: " << filename << std::endl;
+    std::cout << "  Frames: " << mActivationBuffer.size() << std::endl;
+    std::cout << "  Muscles: " << muscles.size() << std::endl;
+    std::cout << "  Duration: " << (mActivationBuffer.size() * dt) << " seconds" << std::endl;
+    
+    mRecordingCount++;
+    mActivationBuffer.clear();
 }

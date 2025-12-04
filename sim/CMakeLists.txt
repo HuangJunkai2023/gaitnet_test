@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(sim)
+cmake_policy(SET CMP0148 OLD)
 
 
 add_compile_options(-Wdeprecated-declarations)
