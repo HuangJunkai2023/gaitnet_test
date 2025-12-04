@@ -30,7 +30,7 @@ GLFWApp::GLFWApp(int argc, char **argv, bool rendermode)
     mTrans = Eigen::Vector3d(0.0, 0.0, 0.0);
     mEye = Eigen::Vector3d(0.0, 0.0, 1.0);
     mUp = Eigen::Vector3d(0.0, 1.0, 0.0);
-    mDrawOBJ = false;
+    mDrawOBJ = true;  // 默认显示OBJ网格模型而不是Box
 
     // Screen Record
     mScreenRecord = false;
