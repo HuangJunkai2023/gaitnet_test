@@ -175,8 +175,8 @@ GLFWApp::GLFWApp(int argc, char **argv, bool rendermode)
     mMotionFrameIdx = 0;
     mMotionRootOffset = Eigen::Vector3d::Zero();
     
-    // Muscle Activation Recording
-    mRecordingActivation = false;
+    // Kinematics Data Recording
+    mRecordingKinematics = false;
     mRecordingCount = 0;
 }
 
@@ -298,10 +298,16 @@ void GLFWApp::update(bool _isSave)
 
         mEnv->setAction(action.cast<double>());
         
-        // Record muscle activation data
-        if (mRecordingActivation && mEnv->getUseMuscle())
+        // Record kinematics data (joint angles, velocities, COM position/velocity)
+        if (mRecordingKinematics)
         {
-            mActivationBuffer.push_back(mEnv->getCharacter(0)->getActivations());
+            KinematicsFrame frame;
+            frame.positions = mEnv->getCharacter(0)->getSkeleton()->getPositions();
+            frame.velocities = mEnv->getCharacter(0)->getSkeleton()->getVelocities();
+            frame.com_position = mEnv->getCharacter(0)->getSkeleton()->getCOM();
+            frame.com_velocity = mEnv->getCharacter(0)->getSkeleton()->getCOMLinearVelocity();
+            frame.time = mEnv->getWorld()->getTime();
+            mKinematicsBuffer.push_back(frame);
         }
     }
     if (_isSave)
@@ -1003,12 +1009,12 @@ void GLFWApp::drawUIDisplay()
     ImGui::Text("Average    Velocity    :  %.3f m/s", mEnv->getAvgVelocity()[2]);
     ImGui::Text("Current    Velocity    :  %.3f m/s", mEnv->getCharacter(0)->getSkeleton()->getCOMLinearVelocity()[2]);
 
-    // Muscle Activation Recording
+    // Kinematics Data Recording
     ImGui::Separator();
-    ImGui::Text("Muscle Activation Recording");
-    if (mRecordingActivation)
+    ImGui::Text("Kinematics Data Recording");
+    if (mRecordingKinematics)
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Recording... (%zu frames)", mActivationBuffer.size());
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Recording... (%zu frames)", mKinematicsBuffer.size());
         if (ImGui::Button("Stop Recording"))
         {
             stopRecording();
@@ -2197,45 +2203,39 @@ void GLFWApp::drawShadow()
 
 void GLFWApp::startRecording()
 {
-    if (!mEnv->getUseMuscle())
-    {
-        std::cout << "Warning: Muscle is not enabled. Cannot record activation data." << std::endl;
-        return;
-    }
-    
-    mRecordingActivation = true;
-    mActivationBuffer.clear();
-    std::cout << "Started recording muscle activation data..." << std::endl;
+    mRecordingKinematics = true;
+    mKinematicsBuffer.clear();
+    std::cout << "Started recording kinematics data (joint angles, velocities, COM)..." << std::endl;
 }
 
 void GLFWApp::stopRecording()
 {
-    if (!mRecordingActivation)
+    if (!mRecordingKinematics)
     {
         std::cout << "Warning: Not currently recording." << std::endl;
         return;
     }
     
-    mRecordingActivation = false;
-    std::cout << "Stopped recording. Captured " << mActivationBuffer.size() << " frames." << std::endl;
+    mRecordingKinematics = false;
+    std::cout << "Stopped recording. Captured " << mKinematicsBuffer.size() << " frames." << std::endl;
     
     // Save the data automatically
-    if (mActivationBuffer.size() > 0)
+    if (mKinematicsBuffer.size() > 0)
     {
-        saveMuscleActivationData();
+        saveKinematicsData();
     }
 }
 
-void GLFWApp::saveMuscleActivationData()
+void GLFWApp::saveKinematicsData()
 {
-    if (mActivationBuffer.size() == 0)
+    if (mKinematicsBuffer.size() == 0)
     {
         std::cout << "Warning: No data to save." << std::endl;
         return;
     }
     
     // Create directory if it doesn't exist
-    std::string dir_path = "../muscle_activation_data";
+    std::string dir_path = "../kinematics_data";
     std::string mkdir_cmd = "mkdir -p " + dir_path;
     system(mkdir_cmd.c_str());
     
@@ -2243,7 +2243,7 @@ void GLFWApp::saveMuscleActivationData()
     auto now = std::chrono::system_clock::now();
     auto time_t_now = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
-    ss << dir_path << "/activation_" 
+    ss << dir_path << "/kinematics_" 
        << std::put_time(std::localtime(&time_t_now), "%Y%m%d_%H%M%S")
        << "_" << std::setfill('0') << std::setw(4) << mRecordingCount
        << ".txt";
@@ -2258,45 +2258,56 @@ void GLFWApp::saveMuscleActivationData()
         return;
     }
     
-    // Write header with muscle names
-    file << "# Muscle Activation Data" << std::endl;
-    file << "# Total frames: " << mActivationBuffer.size() << std::endl;
+    // Write header with DOF information
+    auto skel = mEnv->getCharacter(0)->getSkeleton();
+    int num_dofs = skel->getNumDofs();
+    
+    file << "# Kinematics Data (Joint Angles, Velocities, COM)" << std::endl;
+    file << "# Total frames: " << mKinematicsBuffer.size() << std::endl;
     file << "# Control Hz: " << mEnv->getControlHz() << std::endl;
     file << "# Time step: " << (1.0 / mEnv->getControlHz()) << " seconds" << std::endl;
-    file << "# Muscles: ";
+    file << "# Number of DOFs: " << num_dofs << std::endl;
+    file << "# DOF names: ";
     
-    auto muscles = mEnv->getCharacter(0)->getMuscles();
-    for (size_t i = 0; i < muscles.size(); i++)
+    for (size_t i = 0; i < num_dofs; i++)
     {
-        file << muscles[i]->name;
-        if (i < muscles.size() - 1)
+        file << skel->getDof(i)->getName();
+        if (i < num_dofs - 1)
             file << ", ";
     }
     file << std::endl;
-    file << "# Format: frame_index time muscle1_activation muscle2_activation ..." << std::endl;
+    file << "# Format: frame_index time pos[0..n] vel[0..n] com_x com_y com_z com_vel_x com_vel_y com_vel_z" << std::endl;
     file << std::endl;
     
     // Write data
-    double dt = 1.0 / mEnv->getControlHz();
-    for (size_t i = 0; i < mActivationBuffer.size(); i++)
+    for (size_t i = 0; i < mKinematicsBuffer.size(); i++)
     {
-        file << i << " " << (i * dt) << " ";
-        for (int j = 0; j < mActivationBuffer[i].rows(); j++)
-        {
-            file << mActivationBuffer[i][j];
-            if (j < mActivationBuffer[i].rows() - 1)
-                file << " ";
-        }
+        const auto& frame = mKinematicsBuffer[i];
+        file << i << " " << frame.time << " ";
+        
+        // Write joint positions
+        for (int j = 0; j < frame.positions.rows(); j++)
+            file << frame.positions[j] << " ";
+        
+        // Write joint velocities
+        for (int j = 0; j < frame.velocities.rows(); j++)
+            file << frame.velocities[j] << " ";
+        
+        // Write COM position and velocity
+        file << frame.com_position[0] << " " << frame.com_position[1] << " " << frame.com_position[2] << " ";
+        file << frame.com_velocity[0] << " " << frame.com_velocity[1] << " " << frame.com_velocity[2];
+        
         file << std::endl;
     }
     
     file.close();
     
-    std::cout << "Saved muscle activation data to: " << filename << std::endl;
-    std::cout << "  Frames: " << mActivationBuffer.size() << std::endl;
-    std::cout << "  Muscles: " << muscles.size() << std::endl;
-    std::cout << "  Duration: " << (mActivationBuffer.size() * dt) << " seconds" << std::endl;
+    double duration = mKinematicsBuffer.back().time - mKinematicsBuffer.front().time;
+    std::cout << "Saved kinematics data to: " << filename << std::endl;
+    std::cout << "  Frames: " << mKinematicsBuffer.size() << std::endl;
+    std::cout << "  DOFs: " << num_dofs << std::endl;
+    std::cout << "  Duration: " << duration << " seconds" << std::endl;
     
     mRecordingCount++;
-    mActivationBuffer.clear();
+    mKinematicsBuffer.clear();
 }

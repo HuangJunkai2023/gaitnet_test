@@ -228,12 +228,19 @@ private:
     bool mRenderConditions;
     bool mRenderC3D;
     
-    // Muscle Activation Recording
-    bool mRecordingActivation;
-    std::vector<Eigen::VectorXd> mActivationBuffer;
+    // Kinematics Data Recording (joint angles, velocities, positions)
+    bool mRecordingKinematics;
+    struct KinematicsFrame {
+        Eigen::VectorXd positions;      // Joint positions/angles
+        Eigen::VectorXd velocities;     // Joint velocities
+        Eigen::Vector3d com_position;   // Center of mass position
+        Eigen::Vector3d com_velocity;   // Center of mass velocity
+        double time;                     // Timestamp
+    };
+    std::vector<KinematicsFrame> mKinematicsBuffer;
     int mRecordingCount;
     void startRecording();
     void stopRecording();
-    void saveMuscleActivationData();
+    void saveKinematicsData();
 
 };
