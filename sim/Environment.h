@@ -241,6 +241,13 @@ public:
 
     const std::vector<Eigen::VectorXd> &getDesiredTorqueLogs() { return mDesiredTorqueLogs; }
 
+    // Exoskeleton assistance
+    void setExoskeletonEnabled(bool enabled) { mExoskeletonEnabled = enabled; }
+    bool getExoskeletonEnabled() { return mExoskeletonEnabled; }
+    void setExoskeletonStrength(double strength) { mExoskeletonStrength = strength; }
+    double getExoskeletonStrength() { return mExoskeletonStrength; }
+    void applyExoskeletonForces();
+
     Eigen::VectorXd getParamStateFromNormalized(Eigen::VectorXd normalizedParamState)
     {
         Eigen::VectorXd paramState = Eigen::VectorXd::Zero(mNumParamState);
@@ -399,5 +406,9 @@ private :
 
     bool mUseNormalizedParamState;
     int mNumKnownParam;
+    
+    // Exoskeleton assistance
+    bool mExoskeletonEnabled;
+    double mExoskeletonStrength;
 };
 #endif

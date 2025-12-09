@@ -17,5 +17,9 @@ cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
       -DCMAKE_INSTALL_RPATH=$ENVDIR \
       -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       -DFCL_INCLUDE_DIRS=$ENVDIR/include/fcl \
+      -DPYTHON_EXECUTABLE=$HOME/miniconda3/envs/gaitnet/bin/python \
+      -DPYTHON_INCLUDE_DIR=$HOME/miniconda3/envs/gaitnet/include/python3.6m \
+      -DPYTHON_LIBRARY=$HOME/miniconda3/envs/gaitnet/lib/libpython3.6m.so \
       ..
+make -j16
 popd

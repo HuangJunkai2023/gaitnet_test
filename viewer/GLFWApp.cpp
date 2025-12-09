@@ -70,6 +70,9 @@ GLFWApp::GLFWApp(int argc, char **argv, bool rendermode)
     mCameraMoving = 0;
     mFocus = 0;
     mRenderC3D = false;
+    
+    // Exoskeleton visualization
+    mDrawExoskeletonForces = true;
 
     mTrackball.setTrackball(Eigen::Vector2d(mWidth * 0.5, mHeight * 0.5), mWidth * 0.5);
     mTrackball.setQuaternion(Eigen::Quaterniond::Identity());
@@ -1184,6 +1187,24 @@ void GLFWApp::drawUIDisplay()
         mEnv->getCharacter(0)->setActivations((activation.cast<double>()));
     }
 
+    // Exoskeleton Control
+    if (ImGui::CollapsingHeader("Exoskeleton Assistance"))
+    {
+        bool exoEnabled = mEnv->getExoskeletonEnabled();
+        if (ImGui::Checkbox("Enable Exoskeleton\t", &exoEnabled))
+            mEnv->setExoskeletonEnabled(exoEnabled);
+        
+        float exoStrength = mEnv->getExoskeletonStrength();
+        if (ImGui::SliderFloat("Assistance Strength (N)\t", &exoStrength, 0.0, 1000.0))
+            mEnv->setExoskeletonStrength(exoStrength);
+        
+        ImGui::Checkbox("Visualize Forces\t", &mDrawExoskeletonForces);
+        
+        ImGui::Text("Applies dorsiflexion assistance");
+        ImGui::Text("to LEFT ankle (foot dorsum -> shin)");
+        ImGui::Text("Current force: %.1f N", exoStrength);
+    }
+    
     // Rendering Option
     if (ImGui::CollapsingHeader("Rendering Option"))
     {
@@ -1613,6 +1634,10 @@ void GLFWApp::drawSimFrame()
         glVertex3f(-10, mEnv->getLimitY() * mEnv->getCharacter(0)->getGlobalRatio(), 10);
         glEnd();
     }
+    
+    // Draw exoskeleton forces
+    if (mEnv->getExoskeletonEnabled() && mDrawExoskeletonForces)
+        drawExoskeletonForces();
 
     // Draw marker
     // {
@@ -2198,6 +2223,62 @@ void GLFWApp::drawShadow()
     glTranslatef(-pos[3], 0.0, -pos[5]);
     drawSkeleton(pos, Eigen::Vector4d(0.1, 0.1, 0.1, 1.0));
     glPopMatrix();
+    glEnable(GL_LIGHTING);
+}
+
+void GLFWApp::drawExoskeletonForces()
+{
+    auto skel = mEnv->getCharacter(0)->getSkeleton();
+    
+    // Get body nodes
+    auto leftTalus = skel->getBodyNode("TalusL");
+    auto rightTalus = skel->getBodyNode("TalusR");
+    auto leftTibia = skel->getBodyNode("TibiaL");
+    auto rightTibia = skel->getBodyNode("TibiaR");
+    
+    if (!leftTalus || !rightTalus || !leftTibia || !rightTibia)
+        return;
+    
+    // Attachment points (local coordinates) - ONLY LEFT FOOT
+    Eigen::Vector3d leftTalusAttachment(-0.01, 0.015, 0.1);  // At toe base
+    Eigen::Vector3d leftTibiaAttachment(0.0, -0.0, 0.02);
+    
+    // Convert to world coordinates (only left side)
+    Eigen::Vector3d leftTalusWorld = leftTalus->getTransform() * leftTalusAttachment;
+    Eigen::Vector3d leftTibiaWorld = leftTibia->getTransform() * leftTibiaAttachment;
+    
+    // Calculate force direction (only left)
+    Eigen::Vector3d leftForceDir = (leftTibiaWorld - leftTalusWorld).normalized();
+    
+    // Scale for visualization (force magnitude / scale factor)
+    double forceScale = mEnv->getExoskeletonStrength() * 0.005;  // Scale for visibility
+    Eigen::Vector3d leftForceVec = leftForceDir * forceScale;
+    
+    glDisable(GL_LIGHTING);
+    glLineWidth(4.0);
+    
+    // Draw LEFT exoskeleton strap only
+    glColor4f(0.0, 1.0, 0.0, 0.8);  // Green for exoskeleton
+    glBegin(GL_LINES);
+    glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
+    glVertex3f(leftTibiaWorld[0], leftTibiaWorld[1], leftTibiaWorld[2]);
+    glEnd();
+    
+    // Draw force arrow on LEFT foot only
+    glColor4f(1.0, 0.0, 0.0, 0.9);  // Red for force
+    glBegin(GL_LINES);
+    glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
+    glVertex3f(leftTalusWorld[0] + leftForceVec[0], 
+               leftTalusWorld[1] + leftForceVec[1], 
+               leftTalusWorld[2] + leftForceVec[2]);
+    glEnd();
+    
+    // Draw LEFT attachment points as spheres
+    glColor4f(0.0, 1.0, 1.0, 1.0);  // Cyan for attachment points
+    GUI::DrawSphere(leftTalusWorld, 0.015);
+    GUI::DrawSphere(leftTibiaWorld, 0.015);
+    
+    glLineWidth(1.0);
     glEnable(GL_LIGHTING);
 }
 

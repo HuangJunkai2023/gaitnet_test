@@ -69,6 +69,7 @@ private:
 
     void drawAxis();
     void drawMuscles(const std::vector<Muscle *> muscles, MuscleRenderingType renderingType = activatonLevel, bool isTransparency = true);
+    void drawExoskeletonForces();
 
     void drawShadow();
 
@@ -227,6 +228,9 @@ private:
     Eigen::Vector3d mC3DCOM;
     bool mRenderConditions;
     bool mRenderC3D;
+    
+    // Exoskeleton visualization
+    bool mDrawExoskeletonForces;
     
     // Kinematics Data Recording (joint angles, velocities, positions)
     bool mRecordingKinematics;

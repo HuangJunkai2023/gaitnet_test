@@ -2,7 +2,7 @@
 
 Environment::
     Environment()
-    : mPhaseUpdateInContolHz(false), mSimulationHz(600), mControlHz(30), mUseMuscle(false), mInferencePerSim(1), mHeightCalibration(0), mEnforceSymmetry(false), isRender(false), mIsStanceLearning(false), mLimitY(0.6), mLearningStd(false)
+    : mPhaseUpdateInContolHz(false), mSimulationHz(600), mControlHz(30), mUseMuscle(false), mInferencePerSim(1), mHeightCalibration(0), mEnforceSymmetry(false), isRender(false), mIsStanceLearning(false), mLimitY(0.6), mLearningStd(false), mExoskeletonEnabled(false), mExoskeletonStrength(50.0)
 {
     mWorld = std::make_shared<dart::simulation::World>();
     mCyclic = true;
@@ -972,6 +972,11 @@ void Environment::
                 }
             }
         }
+        
+        // Apply exoskeleton assistance forces before stepping
+        if (mExoskeletonEnabled)
+            applyExoskeletonForces();
+        
         mCharacters[0]->step();
         mWorld->step();
 
@@ -1752,4 +1757,30 @@ Environment::
     // std::cout <<"[MAX V] : " << maxV.transpose() << std::endl;
 
     return std::make_pair(minV, maxV);
+}
+
+void Environment::
+applyExoskeletonForces()
+{
+    // Apply external forces directly on foot dorsum (Talus) pulling toward shin (Tibia)
+    // This simulates an exoskeleton strap connecting foot dorsum to shin
+    
+    auto skel = mCharacters[0]->getSkeleton();
+    auto leftTalus = skel->getBodyNode("TalusL");
+    auto leftTibia = skel->getBodyNode("TibiaL");
+
+    Eigen::Vector3d leftTalusAttachment(-0.01, 0.015, 0.1);  //脚和小腿连接处 左+右-，上下，前+后- cm
+    Eigen::Vector3d leftTibiaAttachment(0.0, -0.0, 0.02);  //小腿 
+    
+    // Calculate world positions of attachment points (only left side)
+    Eigen::Vector3d leftTalusWorld = leftTalus->getTransform() * leftTalusAttachment;
+    Eigen::Vector3d leftTibiaWorld = leftTibia->getTransform() * leftTibiaAttachment;
+    
+    // Calculate force direction: from Talus toward Tibia (pulling up)
+    Eigen::Vector3d leftForceDir = (leftTibiaWorld - leftTalusWorld).normalized();
+    // Apply force with specified strength (only left side)
+    Eigen::Vector3d leftForce = leftForceDir * mExoskeletonStrength;
+    
+    leftTalus->addExtForce(leftForce, leftTalusAttachment, false, true);
+    leftTibia->addExtForce(-leftForce, leftTibiaAttachment, false, true);
 }
