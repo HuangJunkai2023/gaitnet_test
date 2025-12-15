@@ -239,6 +239,7 @@ private:
         Eigen::VectorXd velocities;     // Joint velocities
         Eigen::Vector3d com_position;   // Center of mass position
         Eigen::Vector3d com_velocity;   // Center of mass velocity
+        Eigen::VectorXd muscle_activations; // Muscle activations (EMG)
         double time;                     // Timestamp
     };
     std::vector<KinematicsFrame> mKinematicsBuffer;

@@ -301,7 +301,7 @@ void GLFWApp::update(bool _isSave)
 
         mEnv->setAction(action.cast<double>());
         
-        // Record kinematics data (joint angles, velocities, COM position/velocity)
+        // Record kinematics data (joint angles, velocities, COM position/velocity, muscle activations)
         if (mRecordingKinematics)
         {
             KinematicsFrame frame;
@@ -309,6 +309,7 @@ void GLFWApp::update(bool _isSave)
             frame.velocities = mEnv->getCharacter(0)->getSkeleton()->getVelocities();
             frame.com_position = mEnv->getCharacter(0)->getSkeleton()->getCOM();
             frame.com_velocity = mEnv->getCharacter(0)->getSkeleton()->getCOMLinearVelocity();
+            frame.muscle_activations = mEnv->getCharacter(0)->getActivations();
             frame.time = mEnv->getWorld()->getTime();
             mKinematicsBuffer.push_back(frame);
         }
@@ -2286,7 +2287,7 @@ void GLFWApp::startRecording()
 {
     mRecordingKinematics = true;
     mKinematicsBuffer.clear();
-    std::cout << "Started recording kinematics data (joint angles, velocities, COM)..." << std::endl;
+    std::cout << "Started recording kinematics data (joint angles, velocities, COM, muscle activations)..." << std::endl;
 }
 
 void GLFWApp::stopRecording()
@@ -2339,15 +2340,18 @@ void GLFWApp::saveKinematicsData()
         return;
     }
     
-    // Write header with DOF information
+    // Write header with DOF and muscle information
     auto skel = mEnv->getCharacter(0)->getSkeleton();
     int num_dofs = skel->getNumDofs();
+    auto muscles = mEnv->getCharacter(0)->getMuscles();
+    int num_muscles = muscles.size();
     
-    file << "# Kinematics Data (Joint Angles, Velocities, COM)" << std::endl;
+    file << "# Kinematics Data (Joint Angles, Velocities, COM, Muscle Activations)" << std::endl;
     file << "# Total frames: " << mKinematicsBuffer.size() << std::endl;
     file << "# Control Hz: " << mEnv->getControlHz() << std::endl;
     file << "# Time step: " << (1.0 / mEnv->getControlHz()) << " seconds" << std::endl;
     file << "# Number of DOFs: " << num_dofs << std::endl;
+    file << "# Number of Muscles: " << num_muscles << std::endl;
     file << "# DOF names: ";
     
     for (size_t i = 0; i < num_dofs; i++)
@@ -2357,7 +2361,17 @@ void GLFWApp::saveKinematicsData()
             file << ", ";
     }
     file << std::endl;
-    file << "# Format: frame_index time pos[0..n] vel[0..n] com_x com_y com_z com_vel_x com_vel_y com_vel_z" << std::endl;
+    
+    file << "# Muscle names: ";
+    for (size_t i = 0; i < num_muscles; i++)
+    {
+        file << muscles[i]->GetName();
+        if (i < num_muscles - 1)
+            file << ", ";
+    }
+    file << std::endl;
+    
+    file << "# Format: frame_index time pos[0..n] vel[0..n] com_x com_y com_z com_vel_x com_vel_y com_vel_z muscle_act[0..m]" << std::endl;
     file << std::endl;
     
     // Write data
@@ -2376,7 +2390,15 @@ void GLFWApp::saveKinematicsData()
         
         // Write COM position and velocity
         file << frame.com_position[0] << " " << frame.com_position[1] << " " << frame.com_position[2] << " ";
-        file << frame.com_velocity[0] << " " << frame.com_velocity[1] << " " << frame.com_velocity[2];
+        file << frame.com_velocity[0] << " " << frame.com_velocity[1] << " " << frame.com_velocity[2] << " ";
+        
+        // Write muscle activations
+        for (int j = 0; j < frame.muscle_activations.rows(); j++)
+        {
+            file << frame.muscle_activations[j];
+            if (j < frame.muscle_activations.rows() - 1)
+                file << " ";
+        }
         
         file << std::endl;
     }
@@ -2387,6 +2409,7 @@ void GLFWApp::saveKinematicsData()
     std::cout << "Saved kinematics data to: " << filename << std::endl;
     std::cout << "  Frames: " << mKinematicsBuffer.size() << std::endl;
     std::cout << "  DOFs: " << num_dofs << std::endl;
+    std::cout << "  Muscles: " << num_muscles << std::endl;
     std::cout << "  Duration: " << duration << " seconds" << std::endl;
     
     mRecordingCount++;
