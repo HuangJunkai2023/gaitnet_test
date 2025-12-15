@@ -282,7 +282,7 @@ def main():
         {
             'name': 'Left_Soleus',
             'patterns': ['L_Soleus', 'L_Soleus1'],
-            'axes': ['Soleus (Part 1)', 'Soleus (Part 2)']
+            'axes': ['Soleus', 'Soleus1']
         }
     ]
     
