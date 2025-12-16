@@ -2,7 +2,7 @@
 
 Environment::
     Environment()
-    : mPhaseUpdateInContolHz(false), mSimulationHz(600), mControlHz(30), mUseMuscle(false), mInferencePerSim(1), mHeightCalibration(0), mEnforceSymmetry(false), isRender(false), mIsStanceLearning(false), mLimitY(0.6), mLearningStd(false), mExoskeletonEnabled(false), mExoskeletonStrength(50.0)
+    : mPhaseUpdateInContolHz(false), mSimulationHz(600), mControlHz(30), mUseMuscle(false), mInferencePerSim(1), mHeightCalibration(0), mEnforceSymmetry(false), isRender(false), mIsStanceLearning(false), mLimitY(0.6), mLearningStd(false), mExoskeletonEnabled(false), mExoskeletonStrength(50.0), mExoskeletonAmplitude(20.0), mExoskeletonPeriod(1.0), mExoskeletonPhase(0.0), mExoskeletonDutyCycle(0.5)
 {
     mWorld = std::make_shared<dart::simulation::World>();
     mCyclic = true;
@@ -1778,9 +1778,32 @@ applyExoskeletonForces()
     
     // Calculate force direction: from Talus toward Tibia (pulling up)
     Eigen::Vector3d leftForceDir = (leftTibiaWorld - leftTalusWorld).normalized();
-    // Apply force with specified strength (only left side)
-    Eigen::Vector3d leftForce = leftForceDir * mExoskeletonStrength;
+    
+    // Get square wave force value
+    double forceValue = getSquareWaveForce();
+    
+    // Apply force with square wave modulation (only left side)
+    Eigen::Vector3d leftForce = leftForceDir * forceValue;
     
     leftTalus->addExtForce(leftForce, leftTalusAttachment, false, true);
     leftTibia->addExtForce(-leftForce, leftTibiaAttachment, false, true);
+}
+
+double
+Environment::
+getSquareWaveForce()
+{
+    // Generate square wave force based on current time and parameters
+    // Returns force value between 0 and mExoskeletonAmplitude
+    
+    double currentTime = mWorld->getTime();
+    
+    // Calculate position in period (0 to 1)
+    double phaseInPeriod = fmod(currentTime / mExoskeletonPeriod + mExoskeletonPhase, 1.0);
+    
+    // Generate square wave: high when phase < duty cycle, low otherwise
+    if (phaseInPeriod < mExoskeletonDutyCycle)
+        return mExoskeletonAmplitude;
+    else
+        return 0.0;
 }

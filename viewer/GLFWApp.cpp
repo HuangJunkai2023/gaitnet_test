@@ -1195,15 +1195,38 @@ void GLFWApp::drawUIDisplay()
         if (ImGui::Checkbox("Enable Exoskeleton\t", &exoEnabled))
             mEnv->setExoskeletonEnabled(exoEnabled);
         
-        float exoStrength = mEnv->getExoskeletonStrength();
-        if (ImGui::SliderFloat("Assistance Strength (N)\t", &exoStrength, 0.0, 1000.0))
-            mEnv->setExoskeletonStrength(exoStrength);
+        ImGui::Separator();
+        ImGui::Text("Square Wave Control:");
         
+        // Amplitude control (0-200N)
+        float exoAmplitude = mEnv->getExoskeletonAmplitude();
+        if (ImGui::SliderFloat("Amplitude (N)\t", &exoAmplitude, 0.0, 200.0))
+            mEnv->setExoskeletonAmplitude(exoAmplitude);
+        
+        // Period control (0.1-5.0 seconds)
+        float exoPeriod = mEnv->getExoskeletonPeriod();
+        if (ImGui::SliderFloat("Period (s)\t", &exoPeriod, 0.1, 5.0))
+            mEnv->setExoskeletonPeriod(exoPeriod);
+        
+        // Phase control (0-1, proportion of period)
+        float exoPhase = mEnv->getExoskeletonPhase();
+        if (ImGui::SliderFloat("Phase Offset\t", &exoPhase, 0.0, 1.0))
+            mEnv->setExoskeletonPhase(exoPhase);
+        
+        // Duty cycle control (0-1, high level proportion)
+        float exoDutyCycle = mEnv->getExoskeletonDutyCycle();
+        if (ImGui::SliderFloat("Duty Cycle\t", &exoDutyCycle, 0.0, 1.0))
+            mEnv->setExoskeletonDutyCycle(exoDutyCycle);
+        
+        ImGui::Separator();
         ImGui::Checkbox("Visualize Forces\t", &mDrawExoskeletonForces);
         
+        ImGui::Separator();
         ImGui::Text("Applies dorsiflexion assistance");
         ImGui::Text("to LEFT ankle (foot dorsum -> shin)");
-        ImGui::Text("Current force: %.1f N", exoStrength);
+        double currentForce = mEnv->getSquareWaveForce();
+        ImGui::Text("Current force: %.1f N", currentForce);
+        ImGui::Text("Frequency: %.2f Hz", 1.0 / exoPeriod);
     }
     
     // Rendering Option
@@ -2251,36 +2274,43 @@ void GLFWApp::drawExoskeletonForces()
     // Calculate force direction (only left)
     Eigen::Vector3d leftForceDir = (leftTibiaWorld - leftTalusWorld).normalized();
     
-    // Scale for visualization (force magnitude / scale factor)
-    double forceScale = mEnv->getExoskeletonStrength() * 0.005;  // Scale for visibility
-    Eigen::Vector3d leftForceVec = leftForceDir * forceScale;
+    // Get current square wave force value
+    double currentForce = mEnv->getSquareWaveForce();
     
-    glDisable(GL_LIGHTING);
-    glLineWidth(4.0);
-    
-    // Draw LEFT exoskeleton strap only
-    glColor4f(0.0, 1.0, 0.0, 0.8);  // Green for exoskeleton
-    glBegin(GL_LINES);
-    glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
-    glVertex3f(leftTibiaWorld[0], leftTibiaWorld[1], leftTibiaWorld[2]);
-    glEnd();
-    
-    // Draw force arrow on LEFT foot only
-    glColor4f(1.0, 0.0, 0.0, 0.9);  // Red for force
-    glBegin(GL_LINES);
-    glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
-    glVertex3f(leftTalusWorld[0] + leftForceVec[0], 
-               leftTalusWorld[1] + leftForceVec[1], 
-               leftTalusWorld[2] + leftForceVec[2]);
-    glEnd();
-    
-    // Draw LEFT attachment points as spheres
-    glColor4f(0.0, 1.0, 1.0, 1.0);  // Cyan for attachment points
-    GUI::DrawSphere(leftTalusWorld, 0.015);
-    GUI::DrawSphere(leftTibiaWorld, 0.015);
-    
-    glLineWidth(1.0);
-    glEnable(GL_LIGHTING);
+    // Only draw visualization when force is non-zero
+    if (currentForce > 0.01)  // Small threshold to avoid floating point issues
+    {
+        // Scale for visualization (force magnitude / scale factor)
+        double forceScale = currentForce * 0.005;  // Scale for visibility
+        Eigen::Vector3d leftForceVec = leftForceDir * forceScale;
+        
+        glDisable(GL_LIGHTING);
+        glLineWidth(4.0);
+        
+        // Draw LEFT exoskeleton strap only
+        glColor4f(0.0, 1.0, 0.0, 0.8);  // Green for exoskeleton
+        glBegin(GL_LINES);
+        glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
+        glVertex3f(leftTibiaWorld[0], leftTibiaWorld[1], leftTibiaWorld[2]);
+        glEnd();
+        
+        // Draw force arrow on LEFT foot only
+        glColor4f(1.0, 0.0, 0.0, 0.9);  // Red for force
+        glBegin(GL_LINES);
+        glVertex3f(leftTalusWorld[0], leftTalusWorld[1], leftTalusWorld[2]);
+        glVertex3f(leftTalusWorld[0] + leftForceVec[0], 
+                   leftTalusWorld[1] + leftForceVec[1], 
+                   leftTalusWorld[2] + leftForceVec[2]);
+        glEnd();
+        
+        // Draw LEFT attachment points as spheres
+        glColor4f(0.0, 1.0, 1.0, 1.0);  // Cyan for attachment points
+        GUI::DrawSphere(leftTalusWorld, 0.015);
+        GUI::DrawSphere(leftTibiaWorld, 0.015);
+        
+        glLineWidth(1.0);
+        glEnable(GL_LIGHTING);
+    }
 }
 
 void GLFWApp::startRecording()

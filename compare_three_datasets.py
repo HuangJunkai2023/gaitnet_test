@@ -82,7 +82,7 @@ def plot_muscle_activation_comparison(datasets, labels, muscle_name, muscle_patt
     n_axes = len(muscle_patterns)
     colors = ['blue', 'red', 'green']
     
-    fig, axs = plt.subplots(n_axes, 1, figsize=(14, 4*n_axes))
+    fig, axs = plt.subplots(n_axes, 1, figsize=(80, 4*n_axes))
     if n_axes == 1:
         axs = [axs]
     
@@ -139,7 +139,7 @@ def plot_muscle_activation_comparison(datasets, labels, muscle_name, muscle_patt
         ax.set_title(f'{muscle_name} - {axis_name}', fontsize=13)
         ax.legend(loc='upper left', fontsize=10)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim([0, 4])
+        ax.set_xlim([0, 40])
         ax.set_ylim([0, 1])
     
     plt.tight_layout()
@@ -160,7 +160,7 @@ def plot_three_way_comparison(datasets, labels, joint_name, dof_patterns, axes_n
     n_axes = len(dof_patterns)
     colors = ['blue', 'red', 'green']
     
-    fig, axs = plt.subplots(n_axes, 1, figsize=(14, 4*n_axes))
+    fig, axs = plt.subplots(n_axes, 1, figsize=(80, 4*n_axes))
     if n_axes == 1:
         axs = [axs]
     
@@ -188,7 +188,7 @@ def plot_three_way_comparison(datasets, labels, joint_name, dof_patterns, axes_n
         ax.set_title(f'{joint_name} - {axis_name}', fontsize=13)
         ax.legend(loc='best', fontsize=10)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim([0, 4])
+        ax.set_xlim([0, 40])
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
@@ -200,13 +200,13 @@ def main():
     files = [
         'kinematics_data/off.txt',
         'kinematics_data/20n.txt',
-        'kinematics_data/100n.txt',
+        'kinematics_data/20ntiming.txt',
     ]
     
     labels = [
         'No Exoskeleton',
         'Exo 20N', 
-        'Exo 100N'
+        'Exo 20N Timing'
     ]
     
     output_dir = Path('comparison_plots_three_datasets')
@@ -214,15 +214,15 @@ def main():
     
     print("Loading simulation data...")
     datasets = []
-    time_shifts = [-0.0, -0.35, -0.25]  # 时间偏移: off左移0.1s, 20n左移0.75s, 100n左移0.1s
+    time_shifts = [-0.0, -0.11, -3.15]  # 时间偏移: off, 20n, 20ntiming  负数左移
     
     for file, shift in zip(files, time_shifts):
         data = load_sim_data(file)
         # 归一化时间从0开始，然后应用时间偏移
         data['time'] = data['time'] - data['time'][0] + shift
         
-        # 过滤掉时间小于0或大于4s的数据点
-        valid_mask = (data['time'] >= 0) & (data['time'] <= 4.0)
+        # 过滤掉时间小于0或大于40s的数据点
+        valid_mask = (data['time'] >= 0) & (data['time'] <= 40.0)
         data['time'] = data['time'][valid_mask]
         data['positions'] = data['positions'][valid_mask]
         data['velocities'] = data['velocities'][valid_mask]

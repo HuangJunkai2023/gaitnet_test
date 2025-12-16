@@ -246,7 +246,19 @@ public:
     bool getExoskeletonEnabled() { return mExoskeletonEnabled; }
     void setExoskeletonStrength(double strength) { mExoskeletonStrength = strength; }
     double getExoskeletonStrength() { return mExoskeletonStrength; }
+    
+    // Square wave control parameters
+    void setExoskeletonAmplitude(double amplitude) { mExoskeletonAmplitude = amplitude; }
+    double getExoskeletonAmplitude() { return mExoskeletonAmplitude; }
+    void setExoskeletonPeriod(double period) { mExoskeletonPeriod = period; }
+    double getExoskeletonPeriod() { return mExoskeletonPeriod; }
+    void setExoskeletonPhase(double phase) { mExoskeletonPhase = phase; }
+    double getExoskeletonPhase() { return mExoskeletonPhase; }
+    void setExoskeletonDutyCycle(double dutyCycle) { mExoskeletonDutyCycle = dutyCycle; }
+    double getExoskeletonDutyCycle() { return mExoskeletonDutyCycle; }
+    
     void applyExoskeletonForces();
+    double getSquareWaveForce();
 
     Eigen::VectorXd getParamStateFromNormalized(Eigen::VectorXd normalizedParamState)
     {
@@ -410,5 +422,11 @@ private :
     // Exoskeleton assistance
     bool mExoskeletonEnabled;
     double mExoskeletonStrength;
+    
+    // Square wave control parameters
+    double mExoskeletonAmplitude;   // 方波幅值 (0-20N)
+    double mExoskeletonPeriod;      // 方波周期 (秒)
+    double mExoskeletonPhase;       // 方波相位偏移 (0-1, 占周期比例)
+    double mExoskeletonDutyCycle;   // 占空比 (0-1, 高电平时间占比)
 };
 #endif
