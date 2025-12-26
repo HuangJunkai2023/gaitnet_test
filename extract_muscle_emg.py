@@ -25,6 +25,9 @@ python extract_muscle_emg.py kinematics_data/healthy.txt \
     --normalize \
     --split-legs
 
+
+conda run -n gaitnet python extract_muscle_emg.py kinematics_data/healthy.txt --output motions/healthy_muscle_emg.npz --target-length 200 --normalize --split-legs
+
 # 生成单个统一文件（不分离）
 python extract_muscle_emg.py kinematics_data/healthy.txt \
     --output motions/healthy_muscle_emg.npz \
@@ -411,7 +414,6 @@ def main():
         'R_Semitendinosus',          # Will match R_Semitendinosus
         'R_Gracilis',                # Will match R_Gracilis
         'R_Gluteus_Medius',          # Will match R_Gluteus_Medius* (1, 2, 3, etc.)
-        'R_Internal_Oblique',        # Will match R_Internal_Oblique* (1, 2, etc.)
     ]
     
     print(f"Loading kinematics data from: {args.input_file}")
