@@ -609,6 +609,7 @@ int Environment::
     return isEOE;
 }
 
+double r_emg_similarity = 0.0;
 double Environment::
     getReward()
 {
@@ -688,8 +689,10 @@ double Environment::
         double r_avg = getAvgVelReward();
         double r_step = getStepReward();
         double r_metabolic = getMetabolicReward();
+        double w_emg_similarity = 1.0;
+        // r_emg_similarity = getEMGSimilarityReward();
 
-        r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0);
+        r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0) + w_emg_similarity * r_emg_similarity;
 
         if (isRender)
         {
