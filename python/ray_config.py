@@ -49,6 +49,9 @@ CONFIG["ppo"].update({
     "observation_filter": "NoFilter",
     "normalize_actions": False,
     "clip_actions": True,
+    "train_batch_size": 2048,
+    "sgd_minibatch_size": 256,
+    "num_workers": 1,
 
     # Device Configuration
     "create_env_on_driver": False,
@@ -62,6 +65,9 @@ CONFIG["ppo"].update({
 # Muscle Configuration
 CONFIG["ppo"]["trainer_config"]["muscle_lr"] = 1e-4
 CONFIG["ppo"]["trainer_config"]["muscle_num_epochs"] = 10
+CONFIG["ppo"]["trainer_config"]["muscle_sgd_minibatch_size"] = 256
+CONFIG["ppo"]["trainer_config"]["marginal_sgd_minibatch_size"] = 256
+CONFIG["ppo"]["trainer_config"]["ref_sgd_minibatch_size"] = 256
 
 
 # Large Set (For Cluster)

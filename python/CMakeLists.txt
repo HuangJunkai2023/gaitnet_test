@@ -16,7 +16,7 @@ endif()
 find_package(DART REQUIRED COMPONENTS gui collision-bullet CONFIG)
 # Add dart library directories
 link_directories($ENV{HOME}/pkgenv/lib)
-find_package(PythonLibs REQUIRED)
+find_package(PythonLibs 3.8 REQUIRED)
 find_package(pybind11 REQUIRED)
 
 link_directories(../sim/)

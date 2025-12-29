@@ -1,4 +1,5 @@
 #include "Environment.h"
+#include <unistd.h>
 
 Environment::
     Environment()
@@ -46,6 +47,11 @@ Environment::
     // 0 : one foot , 1 : mid feet
     mPoseOptimizationMode = 0;
     mHorizon = 300;
+    
+    // EMG Anomaly Detection
+    mLoadedEMGModel = false;
+    mLastPhase = 0.0;
+    mLastEMGReward = 0.0;
 }
 Environment::
     ~Environment()
@@ -276,6 +282,63 @@ void Environment::
 
     if (doc.FirstChildElement("Horizon") != NULL)
         mHorizon = doc.FirstChildElement("Horizon")->IntText();
+    
+    // Load EMG Anomaly Detection Model
+    if (mUseMuscle && mRewardType == gaitnet)
+    {
+        try
+        {
+            // 添加python目录到sys.path - 先导入sys
+            py::object sys = py::module::import("sys");
+            py::list path = sys.attr("path");
+            
+            // 获取当前工作目录并构造绝对路径
+            char cwd[256];
+            if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                std::string python_dir = std::string(cwd);
+                // 如果在build目录，需要回到项目根目录
+                if (python_dir.find("/build") != std::string::npos) {
+                    python_dir = python_dir.substr(0, python_dir.rfind("/build"));
+                }
+                python_dir += "/python";
+                path.insert(0, python_dir);  // 插入到路径最前
+                std::cout << "Added to sys.path: " << python_dir << std::endl;
+            }
+            
+            // 也添加相对路径作为备选
+            path.append("./");
+            path.append("./python");
+            path.append("../python");
+            
+            py::module emg_module = py::module::import("test_healthy_emg_30");
+            
+            // 构造模型路径
+            std::string model_path = "lstm_vae_reward/emg_lstm_vae_20251226_101048/best_model.h5";
+            if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                std::string base_path = std::string(cwd);
+                if (base_path.find("/build") != std::string::npos) {
+                    base_path = base_path.substr(0, base_path.rfind("/build"));
+                }
+                model_path = base_path + "/" + model_path;
+                std::cout << "Using model path: " << model_path << std::endl;
+            }
+            
+            mEMGAnomalyDetector = emg_module.attr("EMGAnomalyDetector")(model_path);
+            mLoadedEMGModel = true;
+            mEMGCycleBuffer.clear();
+            std::cout << "EMG Anomaly Detection Model loaded successfully" << std::endl;
+        }
+        catch (const py::error_already_set& e)
+        {
+            std::cout << "Note: EMG model not loaded (optional): Python error: " << e.what() << std::endl;
+            mLoadedEMGModel = false;
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "⚠ Failed to load EMG model: " << e.what() << std::endl;
+            mLoadedEMGModel = false;
+        }
+    }
 
     // =================== Reward ======================
     // =================================================
@@ -690,7 +753,7 @@ double Environment::
         double r_step = getStepReward();
         double r_metabolic = getMetabolicReward();
         double w_emg_similarity = 1.0;
-        // r_emg_similarity = getEMGSimilarityReward();
+        r_emg_similarity = getEMGSimilarityReward();
 
         r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0) + w_emg_similarity * r_emg_similarity;
 
@@ -702,6 +765,7 @@ double Environment::
             mRewardMap.insert(std::make_pair("r_avg", r_avg));
             mRewardMap.insert(std::make_pair("r_step", r_step));
             mRewardMap.insert(std::make_pair("r_metabolic", r_metabolic));
+            mRewardMap.insert(std::make_pair("r_emg_similarity", r_emg_similarity));
         }
     }
 
@@ -1354,6 +1418,83 @@ Environment::
     double r_loco = r_head_linear_acc * r_head_rot_diff;
 
     return r_loco;
+}
+
+double
+Environment::
+    getEMGSimilarityReward()
+{
+    if (!mLoadedEMGModel || !mUseMuscle)
+        return 0.0;
+    
+    // 获取当前肌肉激活
+    const std::vector<Eigen::VectorXd> &muscleLogs = mCharacters[0]->getActivationLogs();
+    if (muscleLogs.empty())
+        return mLastEMGReward;
+    
+    // 每个控制步收集肌肉激活数据
+    Eigen::VectorXd currentActivation = muscleLogs.back();
+    std::vector<double> activation_vec(currentActivation.data(), 
+                                       currentActivation.data() + currentActivation.size());
+    mEMGCycleBuffer.push_back(activation_vec);
+    
+    // 获取当前局部相位 [0, 1)
+    double currentPhase = getLocalPhase(true);
+    
+    // 检测步态周期切换：相位从接近1跳回到接近0
+    bool cycle_completed = (mLastPhase > 0.95 && currentPhase < 0.05 && mEMGCycleBuffer.size() > 10);
+    
+    if (cycle_completed)
+    {
+        try
+        {
+            // 提取目标肌肉的激活数据
+            std::vector<std::vector<double>> cycle_data;
+            for (const auto& frame : mEMGCycleBuffer)
+            {
+                std::vector<double> muscle_frame;
+                for (int i = 0; i < std::min(10, (int)frame.size()); i++)
+                {
+                    muscle_frame.push_back(frame[i]);
+                }
+                cycle_data.push_back(muscle_frame);
+            }
+            
+            // 转换为numpy数组格式
+            py::list py_cycle_data;
+            for (const auto& frame : cycle_data)
+            {
+                py::list py_frame;
+                for (double val : frame)
+                    py_frame.append(val);
+                py_cycle_data.append(py_frame);
+            }
+            
+            // 调用Python模型推理
+            py::tuple result = mEMGAnomalyDetector.attr("predict_reconstruction_error")(
+                py_cycle_data, true, true
+            );
+            
+            double mse = result[0].cast<double>();
+            
+            // 将MSE转换为reward
+            double threshold = 0.005;
+            mLastEMGReward = exp(-mse / threshold);
+            
+            // 清空buffer准备下一个周期
+            mEMGCycleBuffer.clear();
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "EMG inference error: " << e.what() << std::endl;
+            mEMGCycleBuffer.clear();
+        }
+    }
+    
+    // 更新相位记录
+    mLastPhase = currentPhase;
+    
+    return mLastEMGReward;
 }
 
 double

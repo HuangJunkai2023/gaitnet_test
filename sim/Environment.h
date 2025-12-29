@@ -167,6 +167,7 @@ public:
     RewardType getRewardType() { return mRewardType; }
 
     double getMetabolicReward();
+    double getEMGSimilarityReward();
     double getStepReward();
     double getAvgVelReward();
     double getLocoPrinReward();
@@ -428,5 +429,12 @@ private :
     double mExoskeletonPeriod;      // 方波周期 (秒)
     double mExoskeletonPhase;       // 方波相位偏移 (0-1, 占周期比例)
     double mExoskeletonDutyCycle;   // 占空比 (0-1, 高电平时间占比)
+    
+    // EMG Anomaly Detection Model
+    py::object mEMGAnomalyDetector;
+    bool mLoadedEMGModel;
+    std::vector<std::vector<double>> mEMGCycleBuffer;  // 存储一个步态周期的肌肉激活
+    double mLastPhase;  // 用于检测步态周期切换
+    double mLastEMGReward;  // 缓存上一个周期的EMG reward
 };
 #endif
