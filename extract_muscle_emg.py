@@ -23,7 +23,6 @@ python extract_muscle_emg.py kinematics_data/healthy.txt \
     --output motions/healthy_muscle_emg.npz \
     --target-length 200 \
     --normalize \
-    --split-legs
 
 
 conda run -n gaitnet python extract_muscle_emg.py kinematics_data/healthy.txt --output motions/healthy_muscle_emg.npz --target-length 200 --normalize --split-legs
@@ -392,11 +391,6 @@ def main():
         default='minmax',
         help='Normalization method (default: minmax)'
     )
-    parser.add_argument(
-        '--split-legs',
-        action='store_true',
-        help='Split gait cycles into left leg swing and right leg swing phases, output to separate files'
-    )
     
     args = parser.parse_args()
     
@@ -461,6 +455,35 @@ def main():
         target_length=args.target_length
     )
     
+    # Merge adjacent cycles into complete gait cycles (left leg swing + right leg swing)
+    print(f"\nMerging adjacent cycles into complete gait cycles...")
+    merged_data = []
+    merged_cycle_pairs = []
+    
+    for i in range(0, len(cycle_data) - 1, 2):
+        # Concatenate two adjacent cycles along the frame dimension
+        merged_cycle = np.concatenate([cycle_data[i, :, :], cycle_data[i+1, :, :]], axis=0)
+        
+        # Interpolate back to target_length to keep consistent frame size
+        current_length = merged_cycle.shape[0]
+        original_indices = np.linspace(0, 1, current_length)
+        target_indices = np.linspace(0, 1, args.target_length)
+        
+        interpolated_cycle = np.zeros((args.target_length, merged_cycle.shape[1]))
+        for muscle_idx in range(merged_cycle.shape[1]):
+            interpolated_cycle[:, muscle_idx] = np.interp(
+                target_indices,
+                original_indices,
+                merged_cycle[:, muscle_idx]
+            )
+        
+        merged_data.append(interpolated_cycle)
+        merged_cycle_pairs.append((cycle_pairs[i][0], cycle_pairs[i+1][1]))
+    
+    cycle_data = np.array(merged_data)
+    cycle_pairs = merged_cycle_pairs
+    
+    print(f"Merged {len(merged_data)} complete gait cycles")
     print(f"Extracted data shape: {cycle_data.shape}")
     print(f"Extracted muscles: {extracted_muscles}")
     print(f"Data range before normalization: [{np.min(cycle_data):.6f}, {np.max(cycle_data):.6f}]")
@@ -508,49 +531,12 @@ def main():
         
         return save_dict
     
-    # If splitting by leg, create two files
-    if args.split_legs:
-        # Separate cycles into left and right leg swing phases
-        # Odd cycles (0, 2, 4, ...) = Left leg swing phase
-        # Even cycles (1, 3, 5, ...) = Right leg swing phase
-        left_indices = list(range(0, len(cycle_data), 2))
-        right_indices = list(range(1, len(cycle_data), 2))
-        
-        left_data = cycle_data[left_indices, :, :]
-        right_data = cycle_data[right_indices, :, :]
-        
-        left_cycles = [cycle_pairs[i] for i in left_indices]
-        right_cycles = [cycle_pairs[i] for i in right_indices]
-        
-        print(f"Splitting cycles by leg swing phase:")
-        print(f"  Left leg swing: {len(left_indices)} cycles")
-        print(f"  Right leg swing: {len(right_indices)} cycles")
-        
-        # Save left leg file
-        left_output_path = Path(str(output_path).replace('.npz', '_left_swing.npz'))
-        save_dict_left = prepare_save_dict(left_data, norm_params)
-        save_dict_left['cycle_pairs'] = np.array(left_cycles)
-        np.savez(str(left_output_path), **save_dict_left)
-        print(f"✓ Left leg swing saved: {left_output_path}")
-        print(f"  Shape: {left_data.shape}")
-        
-        # Save right leg file
-        right_output_path = Path(str(output_path).replace('.npz', '_right_swing.npz'))
-        save_dict_right = prepare_save_dict(right_data, norm_params)
-        save_dict_right['cycle_pairs'] = np.array(right_cycles)
-        np.savez(str(right_output_path), **save_dict_right)
-        print(f"✓ Right leg swing saved: {right_output_path}")
-        print(f"  Shape: {right_data.shape}")
-    else:
-        # Save single file
-        save_dict = prepare_save_dict(cycle_data, norm_params)
-        np.savez(str(output_path), **save_dict)
+    # Save single file with merged cycles
+    save_dict = prepare_save_dict(cycle_data, norm_params)
+    np.savez(str(output_path), **save_dict)
     
     print("Done!")
-    if args.split_legs:
-        print(f"Output: Two files created (left_swing and right_swing)")
-    else:
-        print(f"Output shape: (n_cycles={cycle_data.shape[0]}, n_frames={cycle_data.shape[1]}, n_muscles={cycle_data.shape[2]})")
+    print(f"Output shape: (n_cycles={cycle_data.shape[0]}, n_frames={cycle_data.shape[1]}, n_muscles={cycle_data.shape[2]})")
 
 
 if __name__ == '__main__':
