@@ -9,7 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(PythonLibs 3.8 REQUIRED)
+find_package(PythonLibs 3.6 EXACT REQUIRED)
 endif(NOT CMAKE_BUILD_TYPE)
 
 link_libraries(stdc++fs)
@@ -25,14 +25,11 @@ set(CMAKE_MODULE_PATH "${CMAKE_HOME_DIRECTORY}/cmake")
 
 # Set Python paths to conda environment
 set(PYTHON_EXECUTABLE "$ENV{HOME}/miniconda3/envs/gaitnet/bin/python")
-set(PYTHON_INCLUDE_DIR "$ENV{HOME}/miniconda3/envs/gaitnet/include/python3.8")
-set(PYTHON_LIBRARY "$ENV{HOME}/miniconda3/envs/gaitnet/lib/libpython3.8.so")
+set(PYTHON_INCLUDE_DIR "$ENV{HOME}/miniconda3/envs/gaitnet/include/python3.6m")
+set(PYTHON_LIBRARY "$ENV{HOME}/miniconda3/envs/gaitnet/lib/libpython3.6m.so")
 
-# Add Python include directory before finding packages
-include_directories(${PYTHON_INCLUDE_DIR})
-
-find_package(PythonLibs 3.8 REQUIRED)
-find_package(PythonInterp 3.8 REQUIRED)
+find_package(PythonLibs 3.6 EXACT REQUIRED)
+find_package(PythonInterp 3.6 EXACT REQUIRED)
 add_subdirectory( libs )
 add_subdirectory( sim )
 add_subdirectory( python )
