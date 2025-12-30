@@ -1443,7 +1443,7 @@ Environment::
     double currentPhase = getLocalPhase(true);
     
     // 检测步态周期切换：相位从接近1跳回到接近0
-    bool cycle_completed = (mLastPhase > 0.95 && currentPhase < 0.05 && mEMGCycleBuffer.size() > 10);
+    bool cycle_completed = (fabs(mLastPhase - currentPhase) > 0.5 && mEMGCycleBuffer.size() > 25);
     
     if (cycle_completed)
     {
@@ -1479,8 +1479,8 @@ Environment::
             double mse = result[0].cast<double>();
             
             // 将MSE转换为reward
-            double mse_norm = 0.01;
-            double mse_abn  = 0.08;
+            double mse_norm = 0.005;
+            double mse_abn  = 0.10;
             mLastEMGReward = 1.0 - std::clamp((mse - mse_norm) / (mse_abn - mse_norm), 0.0, 1.0);
             
             // 清空buffer准备下一个周期

@@ -5,10 +5,15 @@
 """
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# 使用 CPU 推理（CUDA 库不可用，且优化训练速度）
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 import numpy as np
 from tensorflow.keras.models import load_model
+import tensorflow as tf
+
+# 显式设置为 CPU 推理
+tf.config.set_visible_devices([], 'GPU')
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
