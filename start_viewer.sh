@@ -5,8 +5,9 @@ cd /home/huang/scu_robotics/BidirectionalGaitNet
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate gaitnet_new
 
-# Set Python path
+# Set Python path and library path
 export PYTHONPATH=$PYTHONPATH:/home/huang/scu_robotics/BidirectionalGaitNet/python
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 # Run viewer
 cd build

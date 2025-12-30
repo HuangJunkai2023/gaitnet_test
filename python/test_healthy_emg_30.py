@@ -23,7 +23,7 @@ class EMGAnomalyDetector:
     
     def __init__(self, model_path):
         print(f"加载模型: {model_path}")
-        self.model = load_model(model_path)
+        self.model = load_model(model_path, compile=False)
         print(f"模型输入形状: {self.model.input_shape}")
     
     def resample_signal(self, signal, target_length=30):

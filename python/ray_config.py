@@ -55,8 +55,8 @@ CONFIG["ppo"].update({
 
     # Device Configuration
     "create_env_on_driver": False,
-    "num_cpus_for_driver": 0,
-    "num_gpus": 1,
+    "num_cpus_for_driver": 1,
+    "num_gpus": 0,
     "num_gpus_per_worker": 0.,
     "num_envs_per_worker": 1,
     "num_cpus_per_worker": 1,
