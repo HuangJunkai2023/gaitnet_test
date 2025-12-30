@@ -1,5 +1,6 @@
 #include "Environment.h"
 #include <unistd.h>
+#include <iomanip>
 
 Environment::
     Environment()
@@ -1442,8 +1443,13 @@ Environment::
     // 获取当前局部相位 [0, 1)
     double currentPhase = getLocalPhase(true);
     
+    // 实时打印当前相位
+    // std::cout << "\r[Phase] Last: " << std::fixed << std::setprecision(3) 
+    //           << mLastPhase << " -> Current: " << currentPhase 
+    //           << ", Buffer: " << mEMGCycleBuffer.size() << std::flush;
+    
     // 检测步态周期切换：相位从接近1跳回到接近0
-    bool cycle_completed = (fabs(mLastPhase - currentPhase) > 0.5 && mEMGCycleBuffer.size() > 25);
+    bool cycle_completed = (fabs(mLastPhase - currentPhase) > 0.3 && mEMGCycleBuffer.size() > 15);
     
     if (cycle_completed)
     {
