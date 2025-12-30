@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(pysim)
-cmake_policy(SET CMP0148 OLD)
+# cmake_policy(SET CMP0148 OLD)
+if(POLICY CMP0148)
+  cmake_policy(SET CMP0148 NEW)
+endif()
+
 
 add_compile_options(-fPIC)
 add_compile_options(-Wdeprecated-declarations)
