@@ -1,4 +1,4 @@
-name: gaitnet_new
+name: gaitnet
 channels:
   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
   - conda-forge
@@ -180,4 +180,4 @@ dependencies:
       - xarray==0.16.2
       - zict==2.1.0
       - zipp==3.6.0
-prefix: /home/huang/miniconda3/envs/gaitnet_new
+prefix: /home/huang/miniconda3/envs/gaitnet

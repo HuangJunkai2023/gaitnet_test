@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-CONDA_PREFIX=$HOME/miniconda3/envs/gaitnet_new
+CONDA_PREFIX=$HOME/miniconda3/envs/gaitnet
 ENVDIR=${ENVDIR:-$HOME/pkgenv}
 
 mkdir -p build
