@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
+# Use GCC 9 to match the libraries compiled with GCC < 10
+export CC=/usr/bin/gcc-9
+export CXX=/usr/bin/g++-9
+
 CONDA_PREFIX=$HOME/miniconda3/envs/gaitnet
 ENVDIR=${ENVDIR:-$HOME/pkgenv}
 
+# Clean build directory to avoid GCC version conflicts
+rm -rf build
 mkdir -p build
 pushd build
 

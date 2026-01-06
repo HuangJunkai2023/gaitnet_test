@@ -10,11 +10,9 @@ mkdir -p $ENVDIR/lib/cmake
 
 mkdir -p $SRCDIR
 
-# If CentOS server, set C++ compiler manually
-if [ -f /etc/redhat-release ]; then
-    export CC=/opt/ohpc/pub/compiler/gcc/8.3.0/bin/gcc
-    export CXX=/opt/ohpc/pub/compiler/gcc/8.3.0/bin/g++
-fi
+# Use GCC 9 for compatibility
+export CC=/usr/bin/gcc-9
+export CXX=/usr/bin/g++-9
 
 
 install_library() {
