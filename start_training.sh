@@ -12,4 +12,4 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 cd /home/huaxi/scu_robotics/gaitnet_test/python
 
 # 运行训练脚本
-python ray_train.py --config ppo --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@"
+python ray_train.py --config ppo --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
