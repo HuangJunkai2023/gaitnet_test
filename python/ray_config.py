@@ -49,14 +49,14 @@ CONFIG["ppo"].update({
     "observation_filter": "NoFilter",
     "normalize_actions": False,
     "clip_actions": True,
-    "train_batch_size": 2048,
+    "train_batch_size": 4096,
     "sgd_minibatch_size": 256,
-    "num_workers": 1,
+    "num_workers": 8,
 
     # Device Configuration
     "create_env_on_driver": False,
     "num_cpus_for_driver": 1,
-    "num_gpus": 0,
+    "num_gpus": 1,
     "num_gpus_per_worker": 0.,
     "num_envs_per_worker": 1,
     "num_cpus_per_worker": 1,

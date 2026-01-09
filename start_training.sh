@@ -8,6 +8,9 @@ conda activate gaitnet
 export PYTHONPATH=$PYTHONPATH:/home/huaxi/scu_robotics/gaitnet_test/python
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
+# 设置使用GPU 0
+export CUDA_VISIBLE_DEVICES=0
+
 # 进入 python 目录（环境文件使用相对路径 ../data/）
 cd /home/huaxi/scu_robotics/gaitnet_test/python
 
