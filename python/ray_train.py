@@ -93,19 +93,19 @@ class MuscleLearner:
         idx_all = np.asarray(range(len(muscle_transitions[0])))
 
         tau_des_net_all = torch.tensor(np.asarray(
-            muscle_transitions[0]), device="cuda")
+            muscle_transitions[0]), device=self.device)
         JtA_reduced_all = torch.tensor(np.asarray(
-            muscle_transitions[1]), device="cuda")
+            muscle_transitions[1]), device=self.device)
         JtA_all = torch.tensor(np.asarray(
-            muscle_transitions[2]), device="cuda")
+            muscle_transitions[2]), device=self.device)
 
         prev_out_all = None
         w_all = None
         if self.is_cascaded:
             prev_out_all = torch.tensor(np.asarray(
-                muscle_transitions[3]), device="cuda")
+                muscle_transitions[3]), device=self.device)
             w_all = torch.tensor(np.asarray(
-                muscle_transitions[4]), device="cuda")
+                muscle_transitions[4]), device=self.device)
 
         converting_time = (time.perf_counter() - start_time) * 1000
         start_time = time.perf_counter()
@@ -122,7 +122,7 @@ class MuscleLearner:
             loss_act_regul = 0.
             for i in range(l // self.muscle_batch_size):
                 mini_batch_idx = torch.from_numpy(
-                    idx_all[i*self.muscle_batch_size: (i+1)*self.muscle_batch_size]).cuda()
+                    idx_all[i*self.muscle_batch_size: (i+1)*self.muscle_batch_size]).to(self.device)
                 tau_des = torch.index_select(
                     tau_des_net_all, 0, mini_batch_idx)
                 JtA_reduced = torch.index_select(
@@ -379,8 +379,8 @@ if __name__ == "__main__":
     register_env("MyEnv", lambda config: MyEnv(env_xml))
     print(f'Loading config {args.config} from config file {args.config_file}.')
 
-    config["rollout_fragment_length"] = config["train_batch_size"] / \
-        (config["num_workers"] * config["num_envs_per_worker"])
+    config["rollout_fragment_length"] = int(config["train_batch_size"] / \
+        (config["num_workers"] * config["num_envs_per_worker"]))
 
     if args.rollout:
         config["batch_mode"] = "complete_episodes"
