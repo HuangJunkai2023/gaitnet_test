@@ -14,4 +14,4 @@ cd /home/huaxi/scu_robotics/gaitnet_test/python
 # 运行训练脚本
 # python ray_train.py --config ppo_medium_pc --name origin_training 
 
-python ray_train.py --config ppo_medium_pc --config-file ray_config.py --name origin_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
+python ray_train.py --config ppo_large_pc --config-file ray_config.py --name origin_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
