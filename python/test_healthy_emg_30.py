@@ -86,7 +86,7 @@ class EMGAnomalyDetector:
         mse = np.mean((signal - reconstruction) ** 2)
         mae = np.mean(np.abs(signal - reconstruction))
 
-        print(f"  MSE (均方误差): {mse:.6f}  MAE (平均绝对误差): {mae:.6f}")
+        # print(f"  MSE (均方误差): {mse:.6f}  MAE (平均绝对误差): {mae:.6f}")
         
         return mse, mae, reconstruction, signal
     

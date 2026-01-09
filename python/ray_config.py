@@ -49,13 +49,10 @@ CONFIG["ppo"].update({
     "observation_filter": "NoFilter",
     "normalize_actions": False,
     "clip_actions": True,
-    "train_batch_size": 4096,
-    "sgd_minibatch_size": 256,
-    "num_workers": 8,
 
     # Device Configuration
     "create_env_on_driver": False,
-    "num_cpus_for_driver": 1,
+    "num_cpus_for_driver": 0,
     "num_gpus": 1,
     "num_gpus_per_worker": 0.,
     "num_envs_per_worker": 1,
@@ -65,9 +62,6 @@ CONFIG["ppo"].update({
 # Muscle Configuration
 CONFIG["ppo"]["trainer_config"]["muscle_lr"] = 1e-4
 CONFIG["ppo"]["trainer_config"]["muscle_num_epochs"] = 10
-CONFIG["ppo"]["trainer_config"]["muscle_sgd_minibatch_size"] = 256
-CONFIG["ppo"]["trainer_config"]["marginal_sgd_minibatch_size"] = 256
-CONFIG["ppo"]["trainer_config"]["ref_sgd_minibatch_size"] = 256
 
 
 # Large Set (For Cluster)
@@ -131,7 +125,7 @@ CONFIG["ppo_medium_node"] = copy.deepcopy(CONFIG["ppo_medium"])
 CONFIG["ppo_medium_node"]["num_workers"] = 128
 
 CONFIG["ppo_medium_pc"] = copy.deepcopy(CONFIG["ppo_medium"])
-CONFIG["ppo_medium_pc"]["num_workers"] = 32
+CONFIG["ppo_medium_pc"]["num_workers"] = 24
 
 # Small Set
 CONFIG["ppo_small_server"] = copy.deepcopy(CONFIG["ppo_small"])
@@ -141,7 +135,7 @@ CONFIG["ppo_small_node"] = copy.deepcopy(CONFIG["ppo_small"])
 CONFIG["ppo_small_node"]["num_workers"] = 128
 
 CONFIG["ppo_small_pc"] = copy.deepcopy(CONFIG["ppo_small"])
-CONFIG["ppo_small_pc"]["num_workers"] = 32
+CONFIG["ppo_small_pc"]["num_workers"] = 24
 
 # Small Set
 CONFIG["ppo_mini"]["num_workers"] = 1

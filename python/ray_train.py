@@ -379,8 +379,8 @@ if __name__ == "__main__":
     register_env("MyEnv", lambda config: MyEnv(env_xml))
     print(f'Loading config {args.config} from config file {args.config_file}.')
 
-    config["rollout_fragment_length"] = config["train_batch_size"] / \
-        (config["num_workers"] * config["num_envs_per_worker"])
+    config["rollout_fragment_length"] = int(config["train_batch_size"] / \
+        (config["num_workers"] * config["num_envs_per_worker"]))
 
     if args.rollout:
         config["batch_mode"] = "complete_episodes"
