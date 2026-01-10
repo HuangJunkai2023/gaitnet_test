@@ -52,7 +52,7 @@ CONFIG["ppo"].update({
 
     # Device Configuration
     "create_env_on_driver": False,
-    "num_cpus_for_driver": 0,
+    "num_cpus_for_driver": 1,
     "num_gpus": 0,
     "num_gpus_per_worker": 0.,
     "num_envs_per_worker": 1,
@@ -112,7 +112,7 @@ CONFIG["ppo_large_server"] = copy.deepcopy(CONFIG["ppo_large"])
 CONFIG["ppo_large_server"]["num_workers"] = 128 * 4
 
 CONFIG["ppo_large_node"] = copy.deepcopy(CONFIG["ppo_large"])
-CONFIG["ppo_large_node"]["num_workers"] = 128
+CONFIG["ppo_large_node"]["num_workers"] = 142
 
 CONFIG["ppo_large_pc"] = copy.deepcopy(CONFIG["ppo_large"])
 CONFIG["ppo_large_pc"]["num_workers"] = 32
@@ -122,7 +122,7 @@ CONFIG["ppo_medium_server"] = copy.deepcopy(CONFIG["ppo_medium"])
 CONFIG["ppo_medium_server"]["num_workers"] = 128 * 2
 
 CONFIG["ppo_medium_node"] = copy.deepcopy(CONFIG["ppo_medium"])
-CONFIG["ppo_medium_node"]["num_workers"] = 128
+CONFIG["ppo_medium_node"]["num_workers"] = 142
 
 CONFIG["ppo_medium_pc"] = copy.deepcopy(CONFIG["ppo_medium"])
 CONFIG["ppo_medium_pc"]["num_workers"] = 24
@@ -132,7 +132,7 @@ CONFIG["ppo_small_server"] = copy.deepcopy(CONFIG["ppo_small"])
 CONFIG["ppo_small_server"]["num_workers"] = 128 * 4
 
 CONFIG["ppo_small_node"] = copy.deepcopy(CONFIG["ppo_small"])
-CONFIG["ppo_small_node"]["num_workers"] = 140
+CONFIG["ppo_small_node"]["num_workers"] = 142
 
 CONFIG["ppo_small_pc"] = copy.deepcopy(CONFIG["ppo_small"])
 CONFIG["ppo_small_pc"]["num_workers"] = 24

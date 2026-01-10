@@ -9,8 +9,17 @@ import numpy as np
 from tensorflow.keras.models import load_model
 import tensorflow as tf
 
-# 强制TensorFlow使用CPU，将GPU留给PyTorch训练
-tf.config.set_visible_devices([], 'GPU')
+# 配置GPU使用
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        print(f"检测到 {len(gpus)} 张GPU，已启用内存增长模式")
+    except RuntimeError as e:
+        print(e)
+else:
+    print("支持CUDA 12的TensorFlow")
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
@@ -86,7 +95,7 @@ class EMGAnomalyDetector:
         mse = np.mean((signal - reconstruction) ** 2)
         mae = np.mean(np.abs(signal - reconstruction))
 
-        print(f"  MSE (均方误差): {mse:.6f}  MAE (平均绝对误差): {mae:.6f}")
+        # print(f"  MSE (均方误差): {mse:.6f}  MAE (平均绝对误差): {mae:.6f}")
         
         return mse, mae, reconstruction, signal
     
