@@ -93,19 +93,19 @@ class MuscleLearner:
         idx_all = np.asarray(range(len(muscle_transitions[0])))
 
         tau_des_net_all = torch.tensor(np.asarray(
-            muscle_transitions[0]), device=self.device)
+            muscle_transitions[0]), device="cpu")
         JtA_reduced_all = torch.tensor(np.asarray(
-            muscle_transitions[1]), device=self.device)
+            muscle_transitions[1]), device="cpu")
         JtA_all = torch.tensor(np.asarray(
-            muscle_transitions[2]), device=self.device)
+            muscle_transitions[2]), device="cpu")
 
         prev_out_all = None
         w_all = None
         if self.is_cascaded:
             prev_out_all = torch.tensor(np.asarray(
-                muscle_transitions[3]), device=self.device)
+                muscle_transitions[3]), device="cpu")
             w_all = torch.tensor(np.asarray(
-                muscle_transitions[4]), device=self.device)
+                muscle_transitions[4]), device="cpu")
 
         converting_time = (time.perf_counter() - start_time) * 1000
         start_time = time.perf_counter()
@@ -122,7 +122,7 @@ class MuscleLearner:
             loss_act_regul = 0.
             for i in range(l // self.muscle_batch_size):
                 mini_batch_idx = torch.from_numpy(
-                    idx_all[i*self.muscle_batch_size: (i+1)*self.muscle_batch_size]).to(self.device)
+                    idx_all[i*self.muscle_batch_size: (i+1)*self.muscle_batch_size]).to("cpu")
                 tau_des = torch.index_select(
                     tau_des_net_all, 0, mini_batch_idx)
                 JtA_reduced = torch.index_select(
