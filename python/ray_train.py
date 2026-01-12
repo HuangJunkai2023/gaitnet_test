@@ -19,7 +19,8 @@ import torch.nn.functional as F
 import pickle5 as pickle
 
 torch, nn = try_import_torch()
-
+torch.set_num_threads(72)  # 每个socket用72线程
+torch.set_num_interop_threads(2)  # 考虑到NUMA架构，设置较小的并行操作
 
 class MuscleLearner:
     def __init__(self, device, num_actuator_action, num_muscles, num_muscle_dofs,
@@ -201,9 +202,25 @@ def create_my_trainer(rl_algorithm: str):
             self.isTwoLevelActuactor = config.pop("isTwoLevelActuactor")
 
             self.trainer_config = config.pop("trainer_config")
+            self.pretrained_model_path = config.pop("pretrained_model_path", None)
             RLTrainer.setup(self, config=config)
             self.max_reward = 0
             self.remote_workers = self.workers.remote_workers()
+
+            # Load pretrained model weights if provided
+            if self.pretrained_model_path:
+                print(f'Loading pretrained model weights from {self.pretrained_model_path}')
+                try:
+                    pretrained_weights = torch.load(self.pretrained_model_path, 
+                                                   map_location=self.device)
+                    # Get the policy model from the trainer
+                    policy = self.get_policy()
+                    model = policy.model
+                    # Load the weights into the model
+                    model.load_state_dict(pretrained_weights)
+                    print('Successfully loaded pretrained model weights')
+                except Exception as e:
+                    print(f'Warning: Failed to load pretrained model: {e}')
 
             self.env_config = config.pop("env_config")
 
@@ -340,6 +357,8 @@ parser.add_argument("--config-file", type=str,
 parser.add_argument('-n', '--name', type=str)
 parser.add_argument("--env", type=str, default="../data/env.xml")
 parser.add_argument("--checkpoint", type=str, default=None)
+parser.add_argument("--pretrained-model", type=str, default=None, 
+                    help="Path to pretrained model weights file")
 
 parser.add_argument("--rollout", action='store_true')
 
@@ -399,6 +418,10 @@ if __name__ == "__main__":
 
         config["env_config"]["num_muscles"] = env.env.getNumMuscles()
         config["env_config"]["num_muscle_dofs"] = env.env.getNumMuscleDof()
+    
+    # Add pretrained model path to config if provided
+    if args.pretrained_model:
+        config["pretrained_model_path"] = args.pretrained_model
 
     from ray.tune import CLIReporter
 
