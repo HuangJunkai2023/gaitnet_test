@@ -15,4 +15,4 @@ export CUDA_VISIBLE_DEVICES=0
 cd /home/huaxi/scu_robotics/gaitnet_test/python
 
 # 运行训练脚本
-python ray_train.py --config ppo_medium_pc --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
+python ray_train.py --config ppo_small_pc --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
