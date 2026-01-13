@@ -758,13 +758,14 @@ double Environment::
 
         r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0) 
                 + w_emg_similarity * r_emg_similarity;
-
+        r *= 0.8;
         // Print reward components every 30 calls
         static int print_counter = 0;
         if (++print_counter >= 30) {
-            std::cout << "w_gait*r_loco*r_avg*r_step: " << (w_gait * r_loco * r_avg * r_step) 
-                      << ", r_metabolic: " << r_metabolic 
-                      << ", w_emg_similarity*r_emg_similarity: " << (w_emg_similarity * r_emg_similarity) 
+            std::cout << "r_gait: " << (w_gait * r_loco * r_avg * r_step) 
+                      << ", r_meta: " << r_metabolic 
+                      << ", r_emg: " << (w_emg_similarity * r_emg_similarity) 
+                      << ", Total: " << r
                       << std::endl;
             print_counter = 0;
         }
