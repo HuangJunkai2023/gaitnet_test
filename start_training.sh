@@ -2,7 +2,7 @@
 
 # 激活 conda 环境
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate gaitnet
+conda activate gaitnet_new
 
 # 设置 Python 路径和库路径
 export PYTHONPATH=$PYTHONPATH:/home/hx/code/gaitnet_test/python
