@@ -753,7 +753,7 @@ double Environment::
         double r_avg = getAvgVelReward();
         double r_step = getStepReward();
         double r_metabolic = getMetabolicReward();
-        double w_emg_similarity = 100.0;
+        double w_emg_similarity = 5.0;
         r_emg_similarity = getEMGSimilarityReward();
 
         r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0) 
@@ -1487,7 +1487,7 @@ Environment::
             // 将MSE转换为reward
             double mse_norm = 0.005;
             double mse_abn  = 0.10;
-            mLastEMGReward = 1.0 - std::clamp((mse - mse_norm) / (mse_abn - mse_norm), 0.0, 1.0);
+            mLastEMGReward = 0.5 - std::clamp((mse - mse_norm) / (mse_abn - mse_norm), 0.0, 1.0);
             
             // 清空buffer准备下一个周期
             mEMGCycleBuffer.clear();
