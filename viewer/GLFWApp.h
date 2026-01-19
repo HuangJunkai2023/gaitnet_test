@@ -241,6 +241,7 @@ private:
         Eigen::Vector3d com_velocity;   // Center of mass velocity
         Eigen::VectorXd muscle_activations; // Muscle activations (EMG)
         double time;                     // Timestamp
+        double phase;                    // Local phase from getLocalPhase
     };
     std::vector<KinematicsFrame> mKinematicsBuffer;
     int mRecordingCount;
