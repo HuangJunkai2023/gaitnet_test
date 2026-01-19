@@ -80,19 +80,31 @@ def load_sim_data(filepath):
     print(f"  Muscles: {num_muscles}")
     print(f"  Frames: {len(data)}")
     
-    # 数据格式: frame_index time pos[0..n] vel[0..n] com_x com_y com_z com_vel_x com_vel_y com_vel_z muscle_act[0..m]
+    # 数据格式: frame_index time pos[0..n] vel[0..n] com_x com_y com_z com_vel_x com_vel_y com_vel_z muscle_act[0..m] phase
+    muscle_end_col = 2 + 2*num_dofs + 6 + num_muscles
+    
+    # 检查是否有phase列
+    has_phase = data.shape[1] > muscle_end_col
+    phase_data = data[:, -1] if has_phase else None
+    
     result = {
         'frame': data[:, 0],
         'time': data[:, 1],
         'positions': data[:, 2:2+num_dofs],
         'velocities': data[:, 2+num_dofs:2+2*num_dofs],
         'com': data[:, 2+2*num_dofs:2+2*num_dofs+6],
-        'muscle_activations': data[:, 2+2*num_dofs+6:] if num_muscles > 0 else None,
+        'muscle_activations': data[:, 2+2*num_dofs+6:muscle_end_col] if num_muscles > 0 else None,
+        'phase': phase_data,
         'dof_names': dof_names,
         'muscle_names': muscle_names,
         'num_dofs': num_dofs,
         'num_muscles': num_muscles
     }
+    
+    if has_phase:
+        print(f"  Phase data: Found (range: {np.min(phase_data):.3f} - {np.max(phase_data):.3f})")
+    else:
+        print(f"  Phase data: Not found")
     
     return result
 
@@ -137,7 +149,7 @@ def plot_target_muscles(data, found_muscles, title_suffix=''):
     
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4*n_rows))
     fig.suptitle(f'Target Right Side Muscles Activation (First 100 Frames) {title_suffix}', 
-                 fontsize=16, fontweight='bold')
+                 fontsize=16, fontweight='bold', y=0.995)
     
     # 如果只有一行，确保axes是2D数组
     if n_rows == 1:
@@ -163,8 +175,28 @@ def plot_target_muscles(data, found_muscles, title_suffix=''):
         
         activations = data['muscle_activations'][:max_frames, idx]
         
+        # 如果有phase数据,在背景显示相位
+        if data['phase'] is not None:
+            phase_values = data['phase'][:max_frames]
+            # 使用phase作为次坐标轴
+            ax2 = ax.twinx()
+            ax2.plot(frames, phase_values, linewidth=1, color='red', 
+                    alpha=0.4, linestyle='--', label='Gait Phase')
+            ax2.set_ylabel('Gait Phase', fontsize=9, color='red')
+            ax2.set_ylim([0, max(1.0, np.max(phase_values))])
+            ax2.tick_params(axis='y', labelcolor='red', labelsize=8)
+            ax2.spines['right'].set_color('red')
+            ax2.spines['right'].set_linewidth(1.5)
+            
+            # 添加相位的背景色块 (假设0-0.6为支撑相, 0.6-1为摆动相)
+            for i in range(len(frames)-1):
+                if phase_values[i] < 0.6:
+                    ax.axvspan(frames[i], frames[i+1], alpha=0.05, color='yellow')
+                else:
+                    ax.axvspan(frames[i], frames[i+1], alpha=0.05, color='cyan')
+        
         # 绘制激活曲线
-        ax.plot(frames, activations, linewidth=2, color='royalblue', alpha=0.8)
+        ax.plot(frames, activations, linewidth=2, color='royalblue', alpha=0.8, label='Activation')
         ax.fill_between(frames, 0, activations, alpha=0.3, color='lightblue')
         
         # 计算统计信息
@@ -174,8 +206,12 @@ def plot_target_muscles(data, found_muscles, title_suffix=''):
         ax.set_xlabel('Frame', fontsize=10)
         ax.set_ylabel('Activation', fontsize=10)
         ax.set_title(f'{muscle_name}\n({full_name})', fontsize=11, fontweight='bold')
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.3, zorder=0)
         ax.set_ylim([0, 1])
+        
+        # 如果有phase数据,添加图例说明
+        if data['phase'] is not None:
+            ax.legend(loc='upper left', fontsize=8, framealpha=0.7)
         
         # 添加统计信息
         textstr = f'Mean: {mean_act:.3f}\nMax: {max_act:.3f}'
@@ -192,7 +228,7 @@ def plot_target_muscles(data, found_muscles, title_suffix=''):
         col = i % n_cols
         axes[row, col].axis('off')
     
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
     return fig
 
 def plot_muscle_comparison(data, found_muscles, title_suffix=''):
@@ -205,10 +241,29 @@ def plot_muscle_comparison(data, found_muscles, title_suffix=''):
     
     fig, ax = plt.subplots(figsize=(16, 8))
     fig.suptitle(f'Target Right Side Muscles - Comparison (First 100 Frames) {title_suffix}', 
-                 fontsize=16, fontweight='bold')
+                 fontsize=16, fontweight='bold', y=0.98)
     
     frames = data['frame'][:max_frames]
     colors = plt.cm.tab20(np.linspace(0, 1, len(found_muscles)))
+    
+    # 如果有phase数据,在背景显示相位
+    if data['phase'] is not None:
+        phase_values = data['phase'][:max_frames]
+        ax2 = ax.twinx()
+        ax2.plot(frames, phase_values, linewidth=2, color='red', 
+                alpha=0.5, linestyle='--', label='Gait Phase', zorder=1)
+        ax2.set_ylabel('Gait Phase', fontsize=12, color='red')
+        ax2.set_ylim([0, max(1.0, np.max(phase_values))])
+        ax2.tick_params(axis='y', labelcolor='red')
+        ax2.spines['right'].set_color('red')
+        ax2.spines['right'].set_linewidth(2)
+        
+        # 添加相位背景色
+        for i in range(len(frames)-1):
+            if phase_values[i] < 0.6:
+                ax.axvspan(frames[i], frames[i+1], alpha=0.05, color='yellow', zorder=0)
+            else:
+                ax.axvspan(frames[i], frames[i+1], alpha=0.05, color='cyan', zorder=0)
     
     muscle_list = list(TARGET_MUSCLES.keys())
     plot_idx = 0
@@ -222,17 +277,23 @@ def plot_muscle_comparison(data, found_muscles, title_suffix=''):
         
         activations = data['muscle_activations'][:max_frames, idx]
         ax.plot(frames, activations, linewidth=1.5, 
-               label=muscle_name, color=colors[plot_idx], alpha=0.7)
+               label=muscle_name, color=colors[plot_idx], alpha=0.7, zorder=2)
         plot_idx += 1
     
     ax.set_xlabel('Frame', fontsize=12)
     ax.set_ylabel('Activation', fontsize=12)
     ax.set_title('All Target Muscles', fontsize=14, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=9, ncol=2)
-    ax.grid(True, alpha=0.3)
+    
+    # 调整图例位置,为phase数据腾出空间
+    if data['phase'] is not None:
+        ax.legend(loc='upper left', fontsize=9, ncol=2, framealpha=0.8)
+    else:
+        ax.legend(loc='upper right', fontsize=9, ncol=2)
+    
+    ax.grid(True, alpha=0.3, zorder=1)
     ax.set_ylim([0, 1])
     
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     return fig
 
 def export_muscle_data(data, found_muscles, output_file):
