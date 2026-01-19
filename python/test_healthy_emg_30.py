@@ -6,20 +6,33 @@
 
 import os
 import numpy as np
-from tensorflow.keras.models import load_model
 import tensorflow as tf
 
-# 配置GPU使用
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        print(f"检测到 {len(gpus)} 张GPU，已启用内存增长模式")
-    except RuntimeError as e:
-        print(e)
+# TensorFlow 1.x 兼容配置
+if hasattr(tf, 'config') and hasattr(tf.config, 'list_physical_devices'):
+    # TensorFlow 2.x
+    from tensorflow.keras.models import load_model
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            print(f"检测到 {len(gpus)} 张GPU，已启用内存增长模式")
+        except RuntimeError as e:
+            print(e)
+    else:
+        print("未检测到GPU，使用CPU模式")
 else:
-    print("支持CUDA 12的TensorFlow")
+    # TensorFlow 1.x
+    from tensorflow.keras.models import load_model
+    try:
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        from tensorflow.keras import backend as K
+        K.set_session(tf.Session(config=config))
+        print("TensorFlow 1.x GPU配置完成")
+    except:
+        print("TensorFlow 1.x CPU模式")
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
