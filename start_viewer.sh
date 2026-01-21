@@ -13,6 +13,6 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 cd build
 # ./viewer/viewer ../data/env.xml
 
-./viewer/viewer ../emg_trained_model/retrained_12000
+# ./viewer/viewer ../emg_trained_model/phase_4300
 
-# ./viewer/viewer ../data/trained_nn/merge_no_mesh_lbs
+./viewer/viewer ../data/trained_nn/merge_no_mesh_lbs

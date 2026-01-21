@@ -18,13 +18,12 @@ Target muscles (right side):
 - Gluteus medius
 - Right external oblique
 
-conda run -n gaitnet python extract_muscle_emg.py kinematics_data/healthy.txt --output motions/healthy_muscle_emg.npz --target-length 200 --normalize --split-legs
+conda run -n gaitnet python extract_muscle_emg.py kinematics_data/healthy.txt --output healthy_muscle_emg.npz --target-length 200 --normalize --split-legs
 
 # 生成单个统一文件（不分离）
 python extract_muscle_emg.py kinematics_data/healthy.txt \
-    --output motions/healthy_muscle_emg.npz \
-    --target-length 200 \
-    --normalize
+    --output healthy_muscle_emg.npz \
+    --target-length 30 
 """
 
 import numpy as np
