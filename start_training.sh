@@ -2,7 +2,7 @@
 
 # 激活 conda 环境
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate gaitnet_new
+conda activate gaitnet
 
 # 设置 Python 路径和库路径
 export PYTHONPATH=$PYTHONPATH:/home/hx/code/gaitnet_test/python
@@ -15,13 +15,11 @@ export CUDA_VISIBLE_DEVICES=0
 cd /home/hx/code/gaitnet_test/python
 
 # 运行训练脚本
-# python ray_train.py --config ppo_small_node --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@" #--checkpoint ./ray_results/emg_reward_training/
+python ray_train.py --config ppo_small_node --config-file ray_config.py --name emg_reward_training --env ../data/env.xml "$@"
 
-
-python ray_train.py --config ppo_small_node --config-file ray_config.py \
-    --name emg_reward_training --env ../data/env.xml \
-    --checkpoint ./ray_results/emg_reward_training/CustomPPO_MyEnv_05d2f_00000_0_2026-01-12_17-42-34/checkpoint_001775 "$@"
-
+# python ray_train.py --config ppo_small_node --config-file ray_config.py \
+#     --name emg_reward_training --env ../data/env.xml \
+#     --checkpoint ./ray_results/emg_reward_training/CustomPPO_MyEnv_05d2f_00000_0_2026-01-12_17-42-34/checkpoint_001775 "$@"
 
 # python ray_train.py --config ppo_small_node --config-file ray_config.py \
 #   --name emg_reward_training_continue --env ../data/env.xml \
