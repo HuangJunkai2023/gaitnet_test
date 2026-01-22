@@ -3,7 +3,7 @@
 Extract muscle EMG signals from kinematics data and organize by gait cycles.
 
 This script extracts specific muscles' activation levels from kinematics txt files,
-segments them by gait cycles, and outputs as NPZ files with adjustable gait phase offset.
+segments them by gait cycles using phase information, and outputs as NPZ files.
 
 Target muscles (right side):
 - Gastrocnemius medialis (Medial Head)
@@ -18,29 +18,31 @@ Target muscles (right side):
 - Gluteus medius
 - Right external oblique
 
-conda run -n gaitnet python extract_muscle_emg.py kinematics_data/healthy.txt --output healthy_muscle_emg.npz --target-length 200 --normalize --split-legs
-
-# 生成单个统一文件（不分离）
-python extract_muscle_emg.py kinematics_data/healthy.txt \
-    --output healthy_muscle_emg.npz \
-    --target-length 30 
+Usage:
+    python extract_muscle_emg.py
+    (will prompt you to select a txt file)
+    
+Or:
+    python extract_muscle_emg.py kinematics_data/phased_2450.txt --output muscle_emg.npz --target-length 30
 """
 
 import numpy as np
 import os
 import argparse
 from pathlib import Path
+import glob
 
 
 def parse_kinematics_file(filepath):
     """
-    Parse the kinematics data file.
+    Parse the kinematics data file with phase information.
     
     Returns:
-        tuple: (muscle_names, data, header_info)
+        tuple: (muscle_names, data, header_info, has_phase)
             - muscle_names: list of muscle names
-            - data: (n_frames, n_features) array with all data
+            - data: (n_frames, n_features) array with all data (including phase if present)
             - header_info: dict with metadata
+            - has_phase: bool indicating if phase column exists
     """
     with open(filepath, 'r') as f:
         lines = f.readlines()
@@ -48,6 +50,7 @@ def parse_kinematics_file(filepath):
     # Parse header
     header_info = {}
     muscle_names = []
+    has_phase = False
     
     for line in lines:
         if line.startswith('# Total frames:'):
@@ -61,6 +64,8 @@ def parse_kinematics_file(filepath):
         elif line.startswith('# Muscle names:'):
             names_str = line.split(':')[1].strip()
             muscle_names = [m.strip() for m in names_str.split(',')]
+        elif line.startswith('# Format:') and 'phase' in line.lower():
+            has_phase = True
         elif line.startswith('#'):
             continue
         else:
@@ -86,7 +91,7 @@ def parse_kinematics_file(filepath):
     
     data = np.array(data)
     
-    return muscle_names, data, header_info
+    return muscle_names, data, header_info, has_phase
 
 
 def find_muscle_indices(muscle_names, target_muscles):
@@ -132,9 +137,46 @@ def find_muscle_indices(muscle_names, target_muscles):
     return indices, found_map
 
 
+def detect_gait_cycles_by_phase(data, phase_diff_threshold=0.5):
+    """
+    Detect gait cycles using phase information from the last column.
+    A complete gait cycle is detected when phase decreases significantly (phase reset).
+    
+    Args:
+        data: (n_frames, n_features) array, last column is phase
+        phase_diff_threshold: threshold for phase difference to detect reset (default 0.5)
+                              When phase[i] - phase[i-1] < -phase_diff_threshold, it's a reset
+        
+    Returns:
+        list: [(start_idx, end_idx), ...] for each detected cycle
+    """
+    phase = data[:, -1]  # Last column is phase
+    
+    cycles = []
+    cycle_start = 0
+    
+    for i in range(1, len(phase)):
+        # Calculate phase difference
+        phase_diff = phase[i] - phase[i-1]
+        
+        # Detect phase reset: significant decrease in phase value
+        if phase_diff < -phase_diff_threshold:
+            cycle_end = i - 1
+            if cycle_end > cycle_start:  # Valid cycle
+                cycles.append((cycle_start, cycle_end))
+            cycle_start = i
+    
+    # Add the last cycle if it exists
+    if cycle_start < len(phase) - 1:
+        cycles.append((cycle_start, len(phase) - 1))
+    
+    return cycles
+
+
 def detect_gait_cycles(data, hz=30, min_cycle_frames=10):
     """
     Detect gait cycles by finding oscillations in COM acceleration or velocity.
+    This is a fallback method when phase information is not available.
     
     Args:
         data: (n_frames, n_features) array
@@ -341,18 +383,73 @@ def apply_phase_offset(data, phase_offset):
     return shifted_data
 
 
+def select_txt_file():
+    """
+    Let user select a txt file from kinematics_data directory.
+    
+    Returns:
+        str: path to selected file, or None if no files found or cancelled
+    """
+    # Look for txt files in current directory and kinematics_data directory
+    search_paths = [
+        '*.txt',
+        'kinematics_data/*.txt',
+        '../kinematics_data/*.txt',
+    ]
+    
+    txt_files = []
+    for pattern in search_paths:
+        txt_files.extend(glob.glob(pattern))
+    
+    # Remove duplicates and sort
+    txt_files = sorted(list(set(txt_files)))
+    
+    if not txt_files:
+        print("Error: No txt files found in current or kinematics_data directory!")
+        return None
+    
+    print("\n可用的txt文件:")
+    print("=" * 60)
+    for i, filepath in enumerate(txt_files, 1):
+        filesize = os.path.getsize(filepath) / 1024  # KB
+        print(f"{i:2d}. {filepath:40s} ({filesize:8.1f} KB)")
+    print("=" * 60)
+    
+    while True:
+        try:
+            choice = input(f"\n请选择文件编号 (1-{len(txt_files)}) 或按Enter键取消: ").strip()
+            
+            if not choice:
+                print("已取消")
+                return None
+            
+            idx = int(choice) - 1
+            if 0 <= idx < len(txt_files):
+                selected_file = txt_files[idx]
+                print(f"\n已选择: {selected_file}")
+                return selected_file
+            else:
+                print(f"请输入1到{len(txt_files)}之间的数字")
+        except ValueError:
+            print("请输入有效的数字")
+        except KeyboardInterrupt:
+            print("\n已取消")
+            return None
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Extract muscle EMG signals from kinematics data'
+        description='Extract muscle EMG signals from kinematics data using phase information'
     )
     parser.add_argument(
         'input_file',
-        help='Input kinematics text file'
+        nargs='?',  # Make it optional
+        help='Input kinematics text file (will prompt if not provided)'
     )
     parser.add_argument(
         '--output',
-        default='muscle_emg.npz',
-        help='Output NPZ filename (default: muscle_emg.npz)'
+        default=None,
+        help='Output NPZ filename (default: auto-generated from input filename)'
     )
     parser.add_argument(
         '--phase-offset',
@@ -370,7 +467,7 @@ def main():
         '--min-cycle-frames',
         type=int,
         default=10,
-        help='Minimum frames for a valid cycle (default: 10)'
+        help='Minimum frames for a valid cycle (default: 10, only used for non-phase detection)'
     )
     parser.add_argument(
         '--normalize',
@@ -383,8 +480,30 @@ def main():
         default='minmax',
         help='Normalization method (default: minmax)'
     )
+    parser.add_argument(
+        '--phase-threshold',
+        type=float,
+        default=0.5,
+        help='Phase difference threshold for cycle detection (default: 0.5)'
+    )
     
     args = parser.parse_args()
+    
+    # Select file if not provided
+    if args.input_file is None:
+        args.input_file = select_txt_file()
+        if args.input_file is None:
+            return
+    
+    # Check if file exists
+    if not os.path.exists(args.input_file):
+        print(f"Error: File not found: {args.input_file}")
+        return
+    
+    # Auto-generate output filename if not provided
+    if args.output is None:
+        input_path = Path(args.input_file)
+        args.output = f"{input_path.stem}_muscle_emg.npz"
     
     # Target muscles - right side only
     # These will be matched to actual muscle names in the file
@@ -405,10 +524,11 @@ def main():
     print(f"Loading kinematics data from: {args.input_file}")
     
     # Parse input file
-    muscle_names, data, header_info = parse_kinematics_file(args.input_file)
+    muscle_names, data, header_info, has_phase = parse_kinematics_file(args.input_file)
     
     print(f"Loaded {len(muscle_names)} muscles, {data.shape[0]} frames")
     print(f"Header info: {header_info}")
+    print(f"Phase column detected: {has_phase}")
     
     # Find target muscle indices
     print("\nSearching for target muscles...")
@@ -425,10 +545,15 @@ def main():
             for name, idx in zip(actual_names, indices):
                 print(f"       • {name} (index {idx})")
     
-    # Detect gait cycles
-    print(f"\nDetecting gait cycles (min {args.min_cycle_frames} frames)...")
-    cycle_pairs = detect_gait_cycles(data, hz=header_info['control_hz'], 
-                                     min_cycle_frames=args.min_cycle_frames)
+    # Detect gait cycles using phase or fallback method
+    print(f"\nDetecting gait cycles...")
+    if has_phase:
+        print(f"Using phase-based detection (phase difference threshold: {args.phase_threshold})...")
+        cycle_pairs = detect_gait_cycles_by_phase(data, phase_diff_threshold=args.phase_threshold)
+    else:
+        print(f"Phase column not found, using COM velocity-based detection (min {args.min_cycle_frames} frames)...")
+        cycle_pairs = detect_gait_cycles(data, hz=header_info['control_hz'], 
+                                        min_cycle_frames=args.min_cycle_frames)
     
     print(f"Found {len(cycle_pairs)} gait cycles")
     for i, (start, end) in enumerate(cycle_pairs[:5]):
@@ -447,35 +572,7 @@ def main():
         target_length=args.target_length
     )
     
-    # Merge adjacent cycles into complete gait cycles (left leg swing + right leg swing)
-    print(f"\nMerging adjacent cycles into complete gait cycles...")
-    merged_data = []
-    merged_cycle_pairs = []
-    
-    for i in range(0, len(cycle_data) - 1, 2):
-        # Concatenate two adjacent cycles along the frame dimension
-        merged_cycle = np.concatenate([cycle_data[i, :, :], cycle_data[i+1, :, :]], axis=0)
-        
-        # Interpolate back to target_length to keep consistent frame size
-        current_length = merged_cycle.shape[0]
-        original_indices = np.linspace(0, 1, current_length)
-        target_indices = np.linspace(0, 1, args.target_length)
-        
-        interpolated_cycle = np.zeros((args.target_length, merged_cycle.shape[1]))
-        for muscle_idx in range(merged_cycle.shape[1]):
-            interpolated_cycle[:, muscle_idx] = np.interp(
-                target_indices,
-                original_indices,
-                merged_cycle[:, muscle_idx]
-            )
-        
-        merged_data.append(interpolated_cycle)
-        merged_cycle_pairs.append((cycle_pairs[i][0], cycle_pairs[i+1][1]))
-    
-    cycle_data = np.array(merged_data)
-    cycle_pairs = merged_cycle_pairs
-    
-    print(f"Merged {len(merged_data)} complete gait cycles")
+    print(f"Extracted {len(cycle_data)} gait cycles")
     print(f"Extracted data shape: {cycle_data.shape}")
     print(f"Extracted muscles: {extracted_muscles}")
     print(f"Data range before normalization: [{np.min(cycle_data):.6f}, {np.max(cycle_data):.6f}]")
