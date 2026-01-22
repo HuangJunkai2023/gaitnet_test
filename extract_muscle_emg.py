@@ -306,25 +306,26 @@ def extract_gait_cycle_data(data, muscle_indices, cycle_pairs, target_length=200
 def normalize_emg_data(data, method='minmax'):
     """
     Normalize EMG data to 0-1 range.
+    注意：两种方法都对每个肌肉独立归一化，不是跨肌肉的全局归一化
     
     Args:
         data: (n_cycles, n_frames, n_muscles) array
         method: normalization method
-            - 'minmax': (x - min) / (max - min) for each muscle globally
-            - 'per_cycle': normalize each cycle independently
+            - 'minmax': (x - min) / (max - min) for each muscle globally across all cycles
+            - 'per_cycle': normalize each muscle independently within each cycle
             
     Returns:
         numpy array: normalized data with same shape
-        dict: normalization parameters for each muscle
+        dict: normalization parameters for each muscle (only for 'minmax' method)
     """
     n_cycles, n_frames, n_muscles = data.shape
     normalized_data = np.zeros_like(data)
     norm_params = {}
     
     if method == 'minmax':
-        # Global min-max normalization per muscle
+        # Global min-max normalization per muscle (across all cycles)
         for muscle_idx in range(n_muscles):
-            muscle_data = data[:, :, muscle_idx]
+            muscle_data = data[:, :, muscle_idx]  # (n_cycles, n_frames)
             min_val = np.min(muscle_data)
             max_val = np.max(muscle_data)
             
@@ -338,16 +339,17 @@ def normalize_emg_data(data, method='minmax'):
                 norm_params[muscle_idx] = {'min': min_val, 'max': max_val, 'scale': max_val - min_val}
     
     elif method == 'per_cycle':
-        # Normalize each cycle independently
+        # Normalize each muscle independently within each cycle
         for cycle_idx in range(n_cycles):
-            cycle_data = data[cycle_idx, :, :]
-            min_val = np.min(cycle_data)
-            max_val = np.max(cycle_data)
-            
-            if max_val - min_val < 1e-10:
-                normalized_data[cycle_idx, :, :] = 0.5
-            else:
-                normalized_data[cycle_idx, :, :] = (cycle_data - min_val) / (max_val - min_val)
+            for muscle_idx in range(n_muscles):
+                muscle_cycle_data = data[cycle_idx, :, muscle_idx]  # (n_frames,)
+                min_val = np.min(muscle_cycle_data)
+                max_val = np.max(muscle_cycle_data)
+                
+                if max_val - min_val < 1e-10:
+                    normalized_data[cycle_idx, :, muscle_idx] = 0.5
+                else:
+                    normalized_data[cycle_idx, :, muscle_idx] = (muscle_cycle_data - min_val) / (max_val - min_val)
     
     return normalized_data, norm_params
 

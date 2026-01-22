@@ -92,7 +92,7 @@ def main():
     
     # 加载健康肌电数据
     print("加载健康肌电数据...")
-    health_data = np.load("healthy_muscle_emg.npz")
+    health_data = np.load("phased_2450_muscle_emg.npz")
     X_healthy = health_data['emg_data']  # 将自动降采样到30个时间步
     muscle_names = health_data['muscle_names']
     n_healthy_samples = len(X_healthy)

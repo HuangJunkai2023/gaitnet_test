@@ -65,10 +65,14 @@ class EMGAnomalyDetector:
         return resampled
     
     def normalize_signal(self, signal):
-        """Min-Max 归一化 [0, 1]"""
+        """
+        Min-Max 归一化 [0, 1]
+        注意：对每个肌肉通道独立归一化，不是全局归一化
+        """
         signal = np.asarray(signal, dtype=np.float32)
         signal_normalized = signal.copy()
         
+        # 对每个肌肉通道独立进行归一化
         for ch in range(signal.shape[1]):
             min_val = signal[:, ch].min()
             max_val = signal[:, ch].max()
