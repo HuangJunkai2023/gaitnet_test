@@ -311,10 +311,10 @@ void Environment::
             path.append("./python");
             path.append("../python");
             
-            py::module emg_module = py::module::import("test_healthy_emg_30");
+            py::module emg_module = py::module::import("test_healthy_emg_33");
             
             // 构造模型路径
-            std::string model_path = "lstm_vae_reward/emg_lstm_vae_20251226_101048/best_model.h5";
+            std::string model_path = "lstm_vae_reward/emg_lstm_vae_20260127_150617/best_model.h5";
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
                 std::string base_path = std::string(cwd);
                 if (base_path.find("/build") != std::string::npos) {
