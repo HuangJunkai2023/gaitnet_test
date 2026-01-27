@@ -45,8 +45,8 @@ class EMGAnomalyDetector:
         self.model = load_model(model_path, compile=False)
         print(f"模型输入形状: {self.model.input_shape}")
     
-    def resample_signal(self, signal, target_length=30):
-        """将信号从200点降采样到30点"""
+    def resample_signal(self, signal, target_length=33):
+        """将信号重采样到33点（完整步态周期）"""
         # 确保信号是 numpy 数组
         signal = np.asarray(signal, dtype=np.float32)
         
@@ -89,14 +89,23 @@ class EMGAnomalyDetector:
         # 转换为 numpy 数组
         signal = np.asarray(signal, dtype=np.float32)
         
+        # [DEBUG] 打印输入信息（每10次打印一次，避免刷屏）
+        import random
+        if random.random() < 0.1:  # 10%概率打印
+            print(f"[EMG Debug] Input shape: {signal.shape}, dtype: {signal.dtype}, "
+                  f"range: [{signal.min():.4f}, {signal.max():.4f}], "
+                  f"mean: {signal.mean():.4f}")
+        
         # 检查输入形状
         if len(signal.shape) == 1:
             # 如果是1D数组，假设是单通道信号
             signal = signal.reshape(-1, 1)
         
-        # 降采样到30个
-        if resample and signal.shape[0] != 30:
-            signal = self.resample_signal(signal, target_length=30)
+        # 如果不是33帧，根据resample参数决定是否重采样
+        if signal.shape[0] != 33:
+            if resample:
+                signal = self.resample_signal(signal, target_length=33)
+        # 如果已经是33帧，直接跳过重采样
         
         # 归一化
         if normalize:

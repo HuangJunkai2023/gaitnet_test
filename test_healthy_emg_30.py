@@ -26,8 +26,8 @@ class EMGAnomalyDetector:
         self.model = load_model(model_path, compile=False)
         print(f"模型输入形状: {self.model.input_shape}")
     
-    def resample_signal(self, signal, target_length=30):
-        """将信号从200点降采样到30点"""
+    def resample_signal(self, signal, target_length=33):
+        """将信号重采样到33点（完整步态周期）"""
         if signal.shape[0] == target_length:
             return signal
         
@@ -54,13 +54,15 @@ class EMGAnomalyDetector:
     
     def predict_reconstruction_error(self, signal, normalize=True, resample=True):
         """计算单个信号的重构误差"""
-        # 如果需要，降采样到30个时间步
-        if resample and signal.shape[0] == 200:
-            signal = self.resample_signal(signal, target_length=30)
+        # 如果不是33帧，根据resample参数决定是否重采样
+        if signal.shape[0] != 33:
+            if resample:
+                signal = self.resample_signal(signal, target_length=33)
+        # 如果已经是33帧，直接跳过重采样
         
-        # 确保形状 (30, 10)
-        if signal.shape[0] != 30 or signal.shape[1] != 10:
-            raise ValueError(f"信号形状应该是 (30, 10)，得到 {signal.shape}")
+        # 确保形状 (33, 10)
+        if signal.shape[0] != 33 or signal.shape[1] != 10:
+            raise ValueError(f"信号形状应该是 (33, 10)，得到 {signal.shape}")
         
         # 归一化
         if normalize:
@@ -92,7 +94,7 @@ def main():
     
     # 加载健康肌电数据
     print("加载健康肌电数据...")
-    health_data = np.load("phased_2450_muscle_emg.npz")
+    health_data = np.load("kinematics_20260127_144844_0000_muscle_emg.npz")
     X_healthy = health_data['emg_data']  # 将自动降采样到30个时间步
     muscle_names = health_data['muscle_names']
     n_healthy_samples = len(X_healthy)
