@@ -11,8 +11,8 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 # Run viewer
 cd build
-# ./viewer/viewer ../data/env.xml
+./viewer/viewer ../data/env.xml
 
-./viewer/viewer ../emg_trained_model/checkpoint-12150
+# ./viewer/viewer ../emg_trained_model/checkpoint-2025
 
 # ./viewer/viewer ../data/trained_nn/merge_no_mesh_lbs

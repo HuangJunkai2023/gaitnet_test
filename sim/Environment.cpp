@@ -314,7 +314,7 @@ void Environment::
             py::module emg_module = py::module::import("test_healthy_emg_33");
             
             // 构造模型路径
-            std::string model_path = "lstm_vae_reward/emg_lstm_vae_20260127_150617/best_model.h5";
+            std::string model_path = "python/lstm_vae_reward/emg_lstm_vae_20260127_150617/best_model.h";
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
                 std::string base_path = std::string(cwd);
                 if (base_path.find("/build") != std::string::npos) {
@@ -753,12 +753,12 @@ double Environment::
         double r_avg = getAvgVelReward();
         double r_step = getStepReward();
         double r_metabolic = getMetabolicReward();
-        double w_emg_similarity = 1.2;
+        double w_emg_similarity = 0;
         r_emg_similarity = getEMGSimilarityReward();
 
         r = w_gait * r_loco * r_avg * r_step + (mIncludeMetabolicReward ? r_metabolic : 0.0) 
                 + w_emg_similarity * r_emg_similarity;
-        r *= 0.8;
+        // r *= 0.8;
         // Print reward components every 30 calls
         static int print_counter = 0;
         if (++print_counter >= 30) {

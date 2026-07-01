@@ -89,12 +89,12 @@ def main():
     
     # 加载推理器
     detector = EMGAnomalyDetector(
-        "lstm_vae_reward/emg_lstm_vae_20260127_150617/best_model.h5"
+        "python/lstm_vae_reward/emg_lstm_vae_20260127_150617/best_model.h5"
     )
     
     # 加载健康肌电数据
     print("加载健康肌电数据...")
-    health_data = np.load("kinematics_20260127_144844_0000_muscle_emg.npz")
+    health_data = np.load("python/kinematics_20260127_144844_0000_muscle_emg.npz")
     X_healthy = health_data['emg_data']  # 将自动重采样到33个时间步
     muscle_names = health_data['muscle_names']
     n_healthy_samples = len(X_healthy)
@@ -105,7 +105,7 @@ def main():
     
     # 加载评估结果（用于获取阈值）
     print("\n加载训练集评估结果...")
-    eval_data = np.load("lstm_vae_reward/emg_lstm_vae_20260127_150617/evaluation_results.npz")
+    eval_data = np.load("python/lstm_vae_reward/emg_lstm_vae_20260127_150617/evaluation_results.npz")
     test_mse = eval_data['mse']  # 测试集MSE
     test_mae = eval_data['mae']  # 测试集MAE
     
