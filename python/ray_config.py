@@ -137,6 +137,18 @@ CONFIG["ppo_small_node"]["num_workers"] = 128
 CONFIG["ppo_small_pc"] = copy.deepcopy(CONFIG["ppo_small"])
 CONFIG["ppo_small_pc"]["num_workers"] = 32
 
+# Local workstation profile for this machine:
+# Intel Xeon E5-2680 v3, 12 cores / 24 threads, 31 GiB RAM, RTX 2080 Ti.
+# Keep workers below the hardware thread count to avoid memory pressure and
+# leave room for the driver, desktop, and muscle-learning updates.
+CONFIG["ppo_interactive_pc"] = copy.deepcopy(CONFIG["ppo_small"])
+CONFIG["ppo_interactive_pc"]["num_workers"] = 12
+CONFIG["ppo_interactive_pc"]["train_batch_size"] = 3072
+CONFIG["ppo_interactive_pc"]["sgd_minibatch_size"] = 512
+CONFIG["ppo_interactive_pc"]["trainer_config"]["muscle_sgd_minibatch_size"] = 256
+CONFIG["ppo_interactive_pc"]["trainer_config"]["marginal_sgd_minibatch_size"] = 256
+CONFIG["ppo_interactive_pc"]["trainer_config"]["ref_sgd_minibatch_size"] = 256
+
 # Small Set
 CONFIG["ppo_mini"]["num_workers"] = 1
 CONFIG["ppo_mini"]["num_envs_per_worker"] = 1

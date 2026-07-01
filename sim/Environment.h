@@ -3,6 +3,7 @@
 #include "dart/dart.hpp"
 #include "BVH_Parser.h"
 #include "Character.h"
+#include "RewardUtils.h"
 #include "dart/collision/bullet/bullet.hpp"
 
 // Struct Motion (include motion (eigen vectorxd) and param (eigen vectorxd)
@@ -37,7 +38,8 @@ enum RewardType
 {
     deepmimic,
     gaitnet,
-    scadiver
+    scadiver,
+    interactive
 };
 
 enum EOEType
@@ -167,6 +169,7 @@ public:
     RewardType getRewardType() { return mRewardType; }
 
     double getMetabolicReward();
+    double getInteractiveReward();
     double getStepReward();
     double getAvgVelReward();
     double getLocoPrinReward();
@@ -354,6 +357,14 @@ private :
     double mStepWeight;
     double mMetabolicWeight;
     double mAvgVelWeight;
+
+    // Interactive human-robot imitation reward
+    double mInteractiveJointWeight;
+    double mInteractivePositionWeight;
+    double mInteractiveEnergyWeight;
+    double mInteractiveHealthBonus;
+    double mInteractiveEarlyTerminationThreshold;
+    std::vector<std::string> mInteractivePositionBodies;
 
     // Simulation Setting
     bool mSoftPhaseClipping;

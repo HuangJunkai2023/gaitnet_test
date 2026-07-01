@@ -1,5 +1,7 @@
 #include "Environment.h"
 
+#include <algorithm>
+
 Environment::
     Environment()
     : mPhaseUpdateInContolHz(false), mSimulationHz(600), mControlHz(30), mUseMuscle(false), mInferencePerSim(1), mHeightCalibration(0), mEnforceSymmetry(false), isRender(false), mIsStanceLearning(false), mLimitY(0.6), mLearningStd(false)
@@ -21,6 +23,17 @@ Environment::
     mPhaseDisplacementScale = -1.0;
     mPhaseDisplacement = 0.0;
     mNumActuatorAction = 0;
+
+    mInteractiveJointWeight = 1.0;
+    mInteractivePositionWeight = 1.0;
+    mInteractiveEnergyWeight = 0.001;
+    mInteractiveHealthBonus = 1.0;
+    mInteractiveEarlyTerminationThreshold = 0.8;
+    mInteractivePositionBodies = {
+        "Pelvis", "Torso", "Head",
+        "FemurL", "TibiaL", "TalusL", "FootPinkyL", "FootThumbL",
+        "FemurR", "TibiaR", "TalusR", "FootPinkyR", "FootThumbR",
+        "ArmL", "ForeArmL", "ArmR", "ForeArmR"};
 
     mLoadedMuscleNN = false;
     mUseJointState = false;
@@ -218,6 +231,8 @@ void Environment::
             mRewardType = gaitnet;
         if (str_rewardType == "scadiver")
             mRewardType = scadiver;
+        if (str_rewardType == "interactive")
+            mRewardType = interactive;
     }
 
     if (doc.FirstChildElement("eoeType") != NULL)
@@ -297,6 +312,34 @@ void Environment::
 
     if (doc.FirstChildElement("AvgVelWeight") != NULL)
         mAvgVelWeight = doc.FirstChildElement("AvgVelWeight")->DoubleText();
+
+    if (doc.FirstChildElement("InteractiveJointWeight") != NULL)
+        mInteractiveJointWeight = doc.FirstChildElement("InteractiveJointWeight")->DoubleText();
+
+    if (doc.FirstChildElement("InteractivePositionWeight") != NULL)
+        mInteractivePositionWeight = doc.FirstChildElement("InteractivePositionWeight")->DoubleText();
+
+    if (doc.FirstChildElement("InteractiveEnergyWeight") != NULL)
+        mInteractiveEnergyWeight = doc.FirstChildElement("InteractiveEnergyWeight")->DoubleText();
+
+    if (doc.FirstChildElement("InteractiveHealthBonus") != NULL)
+        mInteractiveHealthBonus = doc.FirstChildElement("InteractiveHealthBonus")->DoubleText();
+
+    if (doc.FirstChildElement("InteractiveEarlyTerminationThreshold") != NULL)
+        mInteractiveEarlyTerminationThreshold = doc.FirstChildElement("InteractiveEarlyTerminationThreshold")->DoubleText();
+
+    if (doc.FirstChildElement("InteractivePositionBodies") != NULL)
+    {
+        mInteractivePositionBodies.clear();
+        std::stringstream ss(doc.FirstChildElement("InteractivePositionBodies")->GetText());
+        std::string body_name;
+        while (std::getline(ss, body_name, ','))
+        {
+            body_name = Trim(body_name);
+            if (!body_name.empty())
+                mInteractivePositionBodies.push_back(body_name);
+        }
+    }
 
     // ============= For parameterization ==============
     // =================================================
@@ -603,9 +646,25 @@ int Environment::
     double root_y = mCharacters[0]->getSkeleton()->getCOM()[1];
     if (isFall() || root_y < mLimitY * mCharacters[0]->getGlobalRatio())
         isEOE = 1;
-    // else if (mWorld->getTime() > 10.0)
-    else if (((mEOEType == EOEType::tuple) && (mSimulationStep >= mHorizon)) || ((mEOEType == EOEType::abstime) && (mWorld->getTime() > 10.0)))
-        isEOE = 3;
+    else
+    {
+        if (mRewardType == interactive)
+        {
+            auto skel = mCharacters[0]->getSkeleton();
+            Eigen::VectorXd pos_diff = skel->getPositionDifferences(mTargetPositions, skel->getPositions());
+            int root_dof = skel->getRootJoint()->getNumDofs();
+            if (pos_diff.rows() > root_dof)
+            {
+                Eigen::VectorXd joint_diff = pos_diff.tail(pos_diff.rows() - root_dof);
+                double joint_rms = std::sqrt(joint_diff.squaredNorm() / joint_diff.rows());
+                if (joint_rms > mInteractiveEarlyTerminationThreshold)
+                    isEOE = 1;
+            }
+        }
+
+        if (isEOE == 0 && (((mEOEType == EOEType::tuple) && (mSimulationStep >= mHorizon)) || ((mEOEType == EOEType::abstime) && (mWorld->getTime() > 10.0))))
+            isEOE = 3;
+    }
     return isEOE;
 }
 
@@ -701,8 +760,12 @@ double Environment::
             mRewardMap.insert(std::make_pair("r_metabolic", r_metabolic));
         }
     }
+    else if (mRewardType == interactive)
+    {
+        r = getInteractiveReward();
+    }
 
-    if (mCharacters[0]->getActuactorType() == mus)
+    if (mRewardType != interactive && mCharacters[0]->getActuactorType() == mus)
     {
        // Design the reward function for musculo-skeletal system
         r = 1.0;
@@ -1156,7 +1219,7 @@ void Environment::
     // Reset Initial Time
     double time = 0.0;
 
-    if (mRewardType == deepmimic)
+    if (mRewardType == deepmimic || mRewardType == interactive)
         time = dart::math::Random::uniform(1E-2, mBVHs[0]->getMaxTime() - 1E-2);
     else if (mRewardType == gaitnet)
     {
@@ -1283,6 +1346,79 @@ bool Environment::isFall()
     }
 
     return is_fall;
+}
+
+double
+Environment::
+    getInteractiveReward()
+{
+    auto skel = mCharacters[0]->getSkeleton();
+    Eigen::VectorXd pos = skel->getPositions();
+    Eigen::VectorXd pos_diff = skel->getPositionDifferences(mTargetPositions, pos);
+
+    int root_dof = skel->getRootJoint()->getNumDofs();
+    Eigen::VectorXd joint_diff = pos_diff;
+    if (pos_diff.rows() > root_dof)
+        joint_diff = pos_diff.tail(pos_diff.rows() - root_dof);
+
+    std::vector<dart::dynamics::BodyNode *> position_bodies;
+    for (const auto &body_name : mInteractivePositionBodies)
+    {
+        auto body = skel->getBodyNode(body_name);
+        if (body != nullptr)
+            position_bodies.push_back(body);
+    }
+
+    Eigen::VectorXd position_diff = Eigen::VectorXd::Zero(position_bodies.size() * 3);
+    for (int i = 0; i < position_bodies.size(); i++)
+        position_diff.segment<3>(i * 3) = position_bodies[i]->getCOM();
+
+    skel->setPositions(mTargetPositions);
+    for (int i = 0; i < position_bodies.size(); i++)
+        position_diff.segment<3>(i * 3) -= position_bodies[i]->getCOM();
+    skel->setPositions(pos);
+
+    Eigen::VectorXd effort = Eigen::VectorXd::Zero(0);
+    if (mUseMuscle)
+    {
+        const std::vector<Eigen::VectorXd> &activation_logs = mCharacters[0]->getActivationLogs();
+        if (!activation_logs.empty())
+            effort = activation_logs.back();
+        else if (mCharacters[0]->getActivations().rows() > 0)
+            effort = mCharacters[0]->getActivations();
+    }
+
+    if (effort.rows() == 0)
+    {
+        const std::vector<Eigen::VectorXd> &torque_logs = mCharacters[0]->getTorqueLogs();
+        if (!torque_logs.empty())
+            effort = torque_logs.back();
+        else if (mAction.rows() > 0)
+            effort = mAction.head(std::min(mNumActuatorAction, static_cast<int>(mAction.rows())));
+    }
+
+    bool is_healthy = !isFall() && skel->getCOM()[1] >= mLimitY * mCharacters[0]->getGlobalRatio();
+    InteractiveRewardTerms terms = computeInteractiveRewardTerms(
+        joint_diff,
+        position_diff,
+        effort,
+        is_healthy,
+        mInteractiveJointWeight,
+        mInteractivePositionWeight,
+        mInteractiveEnergyWeight,
+        mInteractiveHealthBonus);
+
+    if (isRender)
+    {
+        mRewardMap.clear();
+        mRewardMap.insert(std::make_pair("r", terms.total));
+        mRewardMap.insert(std::make_pair("r_joint", terms.joint));
+        mRewardMap.insert(std::make_pair("r_position", terms.position));
+        mRewardMap.insert(std::make_pair("r_energy", terms.energy));
+        mRewardMap.insert(std::make_pair("r_health", terms.health));
+    }
+
+    return terms.total;
 }
 
 double
