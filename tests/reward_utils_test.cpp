@@ -24,5 +24,10 @@ int main()
     assert(std::abs(unhealthy_terms.health) < 1e-12);
     assert(unhealthy_terms.total < terms.total);
 
+    const InteractiveRewardTerms terminal_terms = computeInteractiveRewardTerms(
+        joint_diff, position_diff, effort, false, 0.5, 0.25, 0.01, 1.0, true, -200.0);
+    assert(std::abs(terminal_terms.terminal + 200.0) < 1e-12);
+    assert(std::abs(terminal_terms.total - (unhealthy_terms.total - 200.0)) < 1e-12);
+
     return 0;
 }

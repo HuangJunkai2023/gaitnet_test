@@ -69,6 +69,8 @@ public:
 
     void step(int _step = 0);
     void reset();
+    void sampleExternalPerturbation();
+    void applyExternalPerturbation(double dt);
 
     int isEOE();
     void setRefMotion(BVH *_bvh, Character *_character);
@@ -363,8 +365,21 @@ private :
     double mInteractivePositionWeight;
     double mInteractiveEnergyWeight;
     double mInteractiveHealthBonus;
+    double mInteractiveTerminalPenalty;
     double mInteractiveEarlyTerminationThreshold;
     std::vector<std::string> mInteractivePositionBodies;
+
+    // Random transient external perturbations for robust interaction training.
+    bool mUseExternalPerturbation;
+    double mExternalPerturbationProbability;
+    double mExternalPerturbationForceMin;
+    double mExternalPerturbationForceMax;
+    double mExternalPerturbationDurationMin;
+    double mExternalPerturbationDurationMax;
+    double mExternalPerturbationRemainingTime;
+    std::string mExternalPerturbationBody;
+    Eigen::Vector3d mExternalPerturbationForce;
+    std::vector<std::string> mExternalPerturbationBodies;
 
     // Simulation Setting
     bool mSoftPhaseClipping;

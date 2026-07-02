@@ -24,11 +24,12 @@ Environment::
     mPhaseDisplacement = 0.0;
     mNumActuatorAction = 0;
 
-    mInteractiveJointWeight = 1.0;
-    mInteractivePositionWeight = 1.0;
+    mInteractiveJointWeight = 0.2;
+    mInteractivePositionWeight = 0.5;
     mInteractiveEnergyWeight = 0.001;
-    mInteractiveHealthBonus = 1.0;
-    mInteractiveEarlyTerminationThreshold = 0.8;
+    mInteractiveHealthBonus = 3.0;
+    mInteractiveTerminalPenalty = -200.0;
+    mInteractiveEarlyTerminationThreshold = 1.2;
     mInteractivePositionBodies = {
         "Pelvis", "Torso", "Head",
         "FemurL", "TibiaL", "TalusL", "FootPinkyL", "FootThumbL",
@@ -324,6 +325,9 @@ void Environment::
 
     if (doc.FirstChildElement("InteractiveHealthBonus") != NULL)
         mInteractiveHealthBonus = doc.FirstChildElement("InteractiveHealthBonus")->DoubleText();
+
+    if (doc.FirstChildElement("InteractiveTerminalPenalty") != NULL)
+        mInteractiveTerminalPenalty = doc.FirstChildElement("InteractiveTerminalPenalty")->DoubleText();
 
     if (doc.FirstChildElement("InteractiveEarlyTerminationThreshold") != NULL)
         mInteractiveEarlyTerminationThreshold = doc.FirstChildElement("InteractiveEarlyTerminationThreshold")->DoubleText();
@@ -1397,7 +1401,14 @@ Environment::
             effort = mAction.head(std::min(mNumActuatorAction, static_cast<int>(mAction.rows())));
     }
 
-    bool is_healthy = !isFall() && skel->getCOM()[1] >= mLimitY * mCharacters[0]->getGlobalRatio();
+    bool is_terminal_failure = isFall() || skel->getCOM()[1] < mLimitY * mCharacters[0]->getGlobalRatio();
+    if (!is_terminal_failure && joint_diff.rows() > 0)
+    {
+        double joint_rms = std::sqrt(joint_diff.squaredNorm() / joint_diff.rows());
+        is_terminal_failure = joint_rms > mInteractiveEarlyTerminationThreshold;
+    }
+
+    bool is_healthy = !is_terminal_failure;
     InteractiveRewardTerms terms = computeInteractiveRewardTerms(
         joint_diff,
         position_diff,
@@ -1406,7 +1417,9 @@ Environment::
         mInteractiveJointWeight,
         mInteractivePositionWeight,
         mInteractiveEnergyWeight,
-        mInteractiveHealthBonus);
+        mInteractiveHealthBonus,
+        is_terminal_failure,
+        mInteractiveTerminalPenalty);
 
     if (isRender)
     {
@@ -1416,6 +1429,7 @@ Environment::
         mRewardMap.insert(std::make_pair("r_position", terms.position));
         mRewardMap.insert(std::make_pair("r_energy", terms.energy));
         mRewardMap.insert(std::make_pair("r_health", terms.health));
+        mRewardMap.insert(std::make_pair("r_terminal", terms.terminal));
     }
 
     return terms.total;
